@@ -73,15 +73,15 @@ const CODES: Record<string, string> = {
   NOTE_TOO_LONG: 'Note must be 200 characters or less.',
   INVALID_NOTE: 'Notes and reasons must be 200 characters or less.',
   LATER_FIGHT_EXISTS: 'One of these fighters has a newer settled fight. Correct the newest one first.',
-  ADMIN_HAS_BET: "You have a bet on this fight, so another admin has to record it.",
+  ADMIN_HAS_BET: 'You have points on this bout, so another admin has to record the result.',
   PARTICIPANT: "You can't do that on your own fight.",
-  // bets / points / reactions
+  // picks / points / reactions
   INSUFFICIENT_POINTS: 'Not enough points.',
-  BET_TOO_SMALL: 'Minimum bet is 10 points.',
-  BET_TOO_LARGE: "That's over your max bet.",
-  ALREADY_BET: 'You already have a bet on this fight.',
-  BET_NOT_FOUND: 'That bet no longer exists.',
-  BET_NOT_ACTIVE: 'That bet is already closed.',
+  BET_TOO_SMALL: 'Put in at least 10 pts.',
+  BET_TOO_LARGE: "That's more than you can put in right now.",
+  ALREADY_BET: 'You already have points on this bout.',
+  BET_NOT_FOUND: 'That pick no longer exists.',
+  BET_NOT_ACTIVE: 'That pick is already closed.',
   INVALID_DELTA: 'Enter a non-zero number of points.',
   INVALID_EMOJI: "That reaction isn't available.",
   // edge functions

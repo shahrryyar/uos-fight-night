@@ -1,50 +1,67 @@
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtKg, must, record, useAsync } from '../lib/hooks'
-import { formatStreak } from '../lib/math'
+import { cardDateOf, fmtKg, isChampion, must, record, todayCard, useAsync, type FightRow } from '../lib/hooks'
 import type { Fighter, FighterRanking } from '../lib/types'
-import FighterPhoto from '../components/FighterPhoto'
-import { Empty, ErrorBox, Loading, PageTitle, StreakPill } from '../components/member/ui'
+import { ChampionBelt } from '../components/brand'
+import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp } from '../components/ui'
 
+interface Tile { f: Fighter; r?: FighterRanking; tonight: boolean }
+
+/** Fighters grid (DESIGN 11.9): two columns of flat paper tiles, the whole tile is the link. */
 export default function Fighters() {
-  const st = useAsync(async () => {
-    const [f, r] = await Promise.all([
+  const st = useAsync<Tile[]>(async () => {
+    const [f, r, main] = await Promise.all([
       supabase.from('fighters').select('*').eq('hidden', false),
       supabase.from('fighter_rankings').select('*'),
+      supabase.from('fights').select('red_fighter_id,blue_fighter_id,card_date,scheduled_at,status,is_main_event')
+        .eq('is_main_event', true).in('status', ['scheduled', 'open', 'locked']),
     ])
     const ranks = new Map((must(r) as FighterRanking[]).map(x => [x.fighter_id, x]))
-    const list = (must(f) as Fighter[]).map(x => ({ f: x, r: ranks.get(x.id) }))
+    const today = todayCard()
+    const tonight = new Set((must(main) as FightRow[]).filter(x => cardDateOf(x) === today)
+      .flatMap(x => [x.red_fighter_id, x.blue_fighter_id]))
+    const list = (must(f) as Fighter[]).map(x => ({ f: x, r: ranks.get(x.id), tonight: tonight.has(x.id) }))
     return list.sort((a, b) =>
       (a.r?.rank ?? 1e9) - (b.r?.rank ?? 1e9) || b.f.elo - a.f.elo || a.f.nickname.localeCompare(b.f.nickname))
   }, [])
 
   return (
     <div>
-      <PageTitle sub="The roster. Tap a fighter for their full file.">Fighters</PageTitle>
-      {st.loading ? <Loading /> : st.error ? <ErrorBox error={st.error} onRetry={() => void st.reload()} />
-        : !st.data?.length ? <Empty>No fighters on the roster yet.</Empty>
+      <h1 className="t-title">Fighters</h1>
+      <p className="t-help c-2" style={{ marginTop: 6 }}>The roster. Tap a fighter for their full file.</p>
+      {st.loading && !st.data ? <Loading label="Loading the roster…" shape="none" />
+        : st.error ? <Alert title="Couldn't load the roster." onRetry={() => void st.reload()} className="mt-4">Check your connection and try again.</Alert>
+        : !st.data?.length ? <EmptyState title="No fighters yet" body="Admins add fighters to the roster. They show up here with their record." />
         : (
-          <ul className="grid grid-cols-2 gap-3">
-            {st.data.map(({ f, r }) => (
-              <li key={f.id}>
-                <Link to={`/app/fighters/${f.id}`}
-                  className="relative flex h-full flex-col items-center rounded-2xl border border-line bg-surface p-3 text-center active:scale-[0.98] transition">
-                  <span className={`absolute left-2 top-2 font-display text-xl leading-none ${r?.rank ? 'text-gold' : 'text-muted text-sm'}`}>
-                    {r?.rank ? `#${r.rank}` : 'NR'}
-                  </span>
-                  <FighterPhoto path={f.photo_path} nickname={f.nickname} className="size-24 text-2xl" />
-                  <p className="mt-2 font-display text-2xl leading-none tracking-wide break-words max-w-full">{f.nickname}</p>
-                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-bone/90">{fmtKg(f.weight_kg) || '— kg'}</p>
-                  <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted">
-                    <span className="font-semibold text-bone tabular-nums">{record(f)}</span>
-                    <span className="tabular-nums">{f.elo} Elo</span>
-                    <StreakPill streak={f.streak} label={formatStreak(f.streak)} />
-                  </div>
-                </Link>
-              </li>
-            ))}
+          <ul className="grid grid-cols-2 gap-3" style={{ marginTop: 18, listStyle: 'none', padding: 0 }} role="list">
+            {st.data.map(({ f, r, tonight }, i) => <FighterTile key={f.id} f={f} r={r} tonight={tonight} priority={i < 4} />)}
           </ul>
         )}
     </div>
+  )
+}
+
+function FighterTile({ f, r, tonight, priority }: Tile & { priority: boolean }) {
+  const kg = fmtKg(f.weight_kg)
+  const fights = r?.fights ?? f.wins + f.losses
+  const champ = isChampion(f)
+  return (
+    <li>
+      <Paper className="h-full" style={{ padding: '10px 10px 28px' }}>
+        <Link to={`/app/fighters/${f.id}`} className="block" style={{ color: 'inherit', textDecoration: 'none', minHeight: 44 }}>
+          <div className="relative">
+            <HalftonePhoto path={f.photo_path} name={f.nickname} size={180} priority={priority} />
+            {tonight && <Stamp size="sm" fill rot={-5} style={{ position: 'absolute', left: 6, bottom: 6 }}>Tonight</Stamp>}
+          </div>
+          <p className="t-sub" style={{ marginTop: 10 }}>
+            {champ && <ChampionBelt size={22} label="Champion" className="mr-1" />}<bdi>{f.nickname}</bdi>
+          </p>
+          <p className="data c-2" style={{ marginTop: 4 }}>
+            <span className="nowrap">{record(f)}</span>{kg && <> · <span className="nowrap">{kg.replace(' ', ' ')}</span></>}
+          </p>
+          {!r?.ranked && <p className="data c-2" style={{ marginTop: 2 }}><b>{Math.min(fights, 3)} of 3</b> fights</p>}
+        </Link>
+      </Paper>
+    </li>
   )
 }

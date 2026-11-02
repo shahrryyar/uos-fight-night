@@ -1,15 +1,28 @@
-import { useState } from 'react'
-import { supabase, friendlyError } from '../../lib/supabase'
+/**
+ * Reactions (DESIGN 11.3 poster foot, IMPLEMENTATION C4): only emoji with a count above 0, plus a React
+ * button that opens the 6-emoji popover (popover API: top layer, Esc closes). Optimistic counts.
+ * Emoji are content here, never UI icons.
+ */
+import { useId, useRef, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { EMOJIS, type Emoji } from '../../lib/types'
+import { FieldError, Smiley, cx } from '../ui'
+import { pickError } from './format'
 
 export interface ReactionState { counts: Record<string, number>; mine: Set<string> }
 
-interface Props { fightId: string; state: ReactionState; onChange: (s: ReactionState) => void; onSynced: () => void }
+const NAME: Record<Emoji, string> = { '🔥': 'fire', '💀': 'skull', '😂': 'laughing', '💪': 'flexed arm', '👑': 'crown', '😱': 'shocked' }
 
-/** Toggleable emoji reactions with optimistic counts. */
-export default function Reactions({ fightId, state, onChange, onSynced }: Props) {
+interface Props {
+  fightId: string; state: ReactionState; onChange: (s: ReactionState) => void; onSynced: () => void
+  onInk?: boolean
+}
+
+export default function Reactions({ fightId, state, onChange, onSynced, onInk }: Props) {
   const [err, setErr] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const popId = `rx${useId().replace(/:/g, '')}`
 
   const toggle = async (e: Emoji) => {
     if (pending) return
@@ -20,26 +33,42 @@ export default function Reactions({ fightId, state, onChange, onSynced }: Props)
     setPending(e); setErr(null)
     const { error } = await supabase.rpc('toggle_reaction', { p_fight_id: fightId, p_emoji: e })
     setPending(null)
-    if (error) setErr(friendlyError(error))
+    if (error) setErr(pickError(error))
     onSynced()
   }
 
+  const shown = EMOJIS.filter(e => (state.counts[e] ?? 0) > 0)
+
   return (
-    <div>
-      <div className="grid grid-cols-6 gap-1.5">
-        {EMOJIS.map(e => {
+    <div className={cx('reacts-wrap', onInk && 'reacts--ink')}>
+      <div className="reacts" role="group" aria-label="Reactions">
+        {shown.map(e => {
           const mine = state.mine.has(e)
           return (
-            <button key={e} onClick={() => toggle(e)} aria-pressed={mine} aria-label={`React ${e}`}
-              className={`min-h-11 rounded-lg border flex flex-col items-center justify-center leading-none transition active:scale-95
-                ${mine ? 'border-gold bg-gold/15' : 'border-line bg-surface-2'}`}>
-              <span className="text-lg">{e}</span>
-              <span className={`mt-0.5 text-[10px] font-bold tabular-nums ${mine ? 'text-gold' : 'text-muted'}`}>{state.counts[e] ?? 0}</span>
+            <button key={e} type="button" className="react" aria-pressed={mine} onClick={() => void toggle(e)}>
+              <span className="e" aria-hidden="true">{e}</span>{state.counts[e]}
+              <span className="sr-only"> {NAME[e]}{mine ? ', you reacted' : ''}</span>
             </button>
           )
         })}
+        <button type="button" className="react react--add" popoverTarget={popId} aria-label="Add a reaction">
+          <Smiley aria-hidden="true" />React
+        </button>
       </div>
-      {err && <p className="mt-1 text-xs text-red" role="alert">{err}</p>}
+      <div id={popId} ref={pop} popover="auto" className="react-pop" aria-label="Pick a reaction">
+        <p className="label">React to this bout</p>
+        <div className="react-pop-grid">
+          {EMOJIS.map(e => (
+            <button key={e} type="button" className="react" aria-pressed={state.mine.has(e)}
+              onClick={() => { pop.current?.hidePopover?.(); void toggle(e) }}>
+              <span className="e" aria-hidden="true">{e}</span>
+              <span className="sr-only">{NAME[e]}</span>
+              {(state.counts[e] ?? 0) > 0 && <span aria-hidden="true">{state.counts[e]}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+      {err && <FieldError>{err}</FieldError>}
     </div>
   )
 }

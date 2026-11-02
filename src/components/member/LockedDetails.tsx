@@ -1,65 +1,85 @@
-import { fmtPts } from '../../lib/hooks'
-import type { Bet, Side, VoteTotals } from '../../lib/types'
+/**
+ * After lock (DESIGN 11.3 locked, 11.6): crowd picks as a true split (no fake minimum width) and the
+ * points picks list. The viewer's row is tinted with "(you)". Top 4, then "Show all N picks".
+ * Settled: the amount column adds "+79 back" / "Came back" / "Lost".
+ */
+import { useId, useState } from 'react'
+import { fmtNum } from '../../lib/copy'
+import type { Bet, VoteTotals } from '../../lib/types'
+import { Button, cx } from '../ui'
+import { SplitBar } from './PoolBar'
+import { sideWord } from './format'
 
 interface Props {
   totals: VoteTotals | null
   bets: Bet[]
   names: Map<string, string>
   myId: string | undefined
-  redName: string; blueName: string
   settled: boolean
+  /** hide the crowd split (e.g. the settled sheet shows it inside "Who picked what") */
+  crowd?: boolean
 }
 
-/** After lock: crowd vote split + every individual pick (who / side / amount / payout). */
-export default function LockedDetails({ totals, bets, names, myId, redName, blueName, settled }: Props) {
+const TOP = 4
+
+export function CrowdPicks({ totals }: { totals: VoteTotals | null }) {
+  const id = useId()
   const rv = totals?.red_votes ?? 0, bv = totals?.blue_votes ?? 0
-  const rp = totals ? Math.round(Number(totals.red_pct)) : 0
-  const bp = totals ? Math.round(Number(totals.blue_pct)) : 0
-  const sorted = [...bets].sort((a, b) => b.amount - a.amount)
-  const label = (s: Side) => (s === 'red' ? redName : blueName)
+  return (
+    <section className="blk" aria-labelledby={id}>
+      <div className="blk-head"><h3 id={id} className="t-sub">Crowd picks</h3><span className="data">{rv + bv} picked</span></div>
+      {rv + bv === 0
+        ? <p className="pool-empty t-help">Nobody picked a winner for this one.</p>
+        : <>
+            <SplitBar red={rv} blue={bv} label={`${rv} picked red, ${bv} picked blue`} />
+            <div className="pool-legend data"><p><b>{rv}</b> picked red</p><p><b>{bv}</b> picked blue</p></div>
+          </>}
+    </section>
+  )
+}
+
+export default function LockedDetails({ totals, bets, names, myId, settled, crowd = true }: Props) {
+  const id = useId()
+  const [all, setAll] = useState(false)
+  // your own row first, then biggest first
+  const sorted = [...bets].sort((a, b) => Number(b.user_id === myId) - Number(a.user_id === myId) || b.amount - a.amount)
+  const total = bets.reduce((s, b) => s + b.amount, 0)
+  const shown = all ? sorted : sorted.slice(0, TOP)
+  const result = (b: Bet) => b.status === 'won' ? `+${fmtNum(b.payout ?? 0)} back` : b.status === 'refunded' ? 'Came back' : b.status === 'lost' ? 'Lost' : ''
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-muted">Crowd picks</p>
-        {rv + bv === 0 ? (
-          <p className="text-xs text-muted mt-1">No votes cast.</p>
+    <>
+      {crowd && <CrowdPicks totals={totals} />}
+      <section className="blk" aria-labelledby={id}>
+        <div className="blk-head">
+          <h3 id={id} className="t-sub">Points picks</h3>
+          <span className="data"><b>{fmtNum(total)}&nbsp;pts</b> · {bets.length}</span>
+        </div>
+        {sorted.length === 0 ? (
+          <p className="pool-empty t-help">Nobody put points on this one.</p>
         ) : (
           <>
-            <div className="mt-1 flex h-7 overflow-hidden rounded-lg font-display text-lg leading-7">
-              <div className="bg-red px-2 text-left whitespace-nowrap" style={{ width: `${Math.max(rp, 12)}%` }}>{rp}%</div>
-              <div className="bg-blue px-2 text-right flex-1 whitespace-nowrap">{bp}%</div>
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-muted">
-              <span>{rv} for {redName}</span><span>{bv} for {blueName}</span>
-            </div>
+            <ul className={cx('picks-list', settled && 'picks-list--settled')}>
+              {shown.map(b => {
+                const me = b.user_id === myId
+                return (
+                  <li key={b.id} className={me ? 'me' : undefined}>
+                    <span className="who"><bdi>{names.get(b.user_id) ?? 'Member'}</bdi>{me && ' (you)'}</span>
+                    <span className={`side-tag side-tag--${b.side}`}>{sideWord(b.side)}</span>
+                    <span className="data"><b>{fmtNum(b.amount)}</b></span>
+                    {settled && <span className="data res">{result(b)}</span>}
+                  </li>
+                )
+              })}
+            </ul>
+            {sorted.length > TOP && (
+              <Button variant="ghost" size="sm" className="w-full mt-2" aria-expanded={all} onClick={() => setAll(v => !v)}>
+                {all ? 'Show fewer' : `Show all ${sorted.length} picks`}
+              </Button>
+            )}
           </>
         )}
-      </div>
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-muted">Points picks ({bets.length})</p>
-        {sorted.length === 0 ? (
-          <p className="text-xs text-muted mt-1">Nobody put points on this one.</p>
-        ) : (
-          <ul className="mt-1 divide-y divide-line rounded-lg border border-line">
-            {sorted.map(b => (
-              <li key={b.id} className={`flex items-center gap-2 px-3 py-2 text-sm ${b.user_id === myId ? 'bg-gold/10' : ''}`}>
-                <span className={`size-2.5 shrink-0 rounded-full ${b.side === 'red' ? 'bg-red' : 'bg-blue'}`} aria-hidden />
-                <span className="flex-1 truncate">
-                  {names.get(b.user_id) ?? 'Member'}{b.user_id === myId && <span className="text-gold"> (you)</span>}
-                  <span className="text-muted"> · {label(b.side)}</span>
-                </span>
-                <span className="tabular-nums font-semibold">{b.amount}</span>
-                {settled && (
-                  <span className={`w-20 text-right tabular-nums text-xs font-bold ${b.status === 'won' ? 'text-gold' : 'text-muted'}`}>
-                    {b.status === 'won' ? `+${fmtPts(b.payout)}` : b.status === 'refunded' ? 'refund' : 'lost'}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+      </section>
+    </>
   )
 }

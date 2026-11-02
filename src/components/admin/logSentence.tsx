@@ -1,0 +1,79 @@
+/** Admin log sentences (DESIGN 11.16): one human sentence per event, never raw snake_case or UUIDs. */
+import type { ReactNode } from 'react'
+import { fmtDelta, fmtNum } from '../../lib/copy'
+import type { AdminLogRow } from '../../lib/types'
+import { fmtCardDate } from './ui'
+
+type Dict = Record<string, unknown>
+export interface FightRef { id: string; red_fighter_id: string; blue_fighter_id: string; card_date: string | null }
+export interface Lookups { people: Record<string, string>; fighters: Record<string, string>; fights: Record<string, FightRef> }
+
+const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+
+/** One human sentence per event (DESIGN 11.16 "Admin log"): never raw snake_case actions or UUIDs. */
+export function logSentence(r: AdminLogRow, L: Lookups): { say: ReactNode; why?: string | null } {
+  const d = (r.details && typeof r.details === 'object' ? r.details : {}) as Dict
+  const who = r.actor ? L.people[r.actor] ?? 'An admin' : 'The system'
+  const fighter = (id: unknown) => (typeof id === 'string' ? L.fighters[id] ?? 'a fighter' : 'a fighter')
+  const person = (id: string | null) => (id ? L.people[id] ?? 'a member' : 'a member')
+  const f = r.target_id ? L.fights[r.target_id] : undefined
+  const bout = f ? `${fighter(f.red_fighter_id)} vs ${fighter(f.blue_fighter_id)}` : 'a bout'
+  const B = (s: string) => <bdi>{s}</bdi>
+  const reason = str(d.reason) ?? str(d.note)
+
+  switch (r.action) {
+    case 'fight_create': {
+      const date = str(d.card_date)
+      return { say: <>{B(who)} booked {B(`${fighter(d.red)} vs ${fighter(d.blue)}`)}{date ? ` for ${fmtCardDate(date)}` : ''}{d.is_main_event ? ' as the main event' : ''}.</> }
+    }
+    case 'fight_lock': return { say: <>{B(who)} locked picks on {B(bout)}.</> }
+    case 'fight_settle': {
+      const side = d.winner_side === 'red' ? 'red' : d.winner_side === 'blue' ? 'blue' : null
+      const winner = f && side ? fighter(side === 'red' ? f.red_fighter_id : f.blue_fighter_id) : 'the winner'
+      const score = typeof d.red_score === 'number' && typeof d.blue_score === 'number' ? `, ${d.red_score}–${d.blue_score}` : ''
+      return { say: <>{B(who)} recorded {B(bout)}: {B(winner)} by {String(d.method ?? 'result')}{score}.</> }
+    }
+    case 'fight_correct': return { say: <>{B(who)} corrected the result of {B(bout)}. It went back on the live card.</>, why: reason }
+    case 'fight_cancel': return { say: <>{B(who)} called off {B(bout)}. Every pick came back.</>, why: reason }
+    case 'fight_no_contest': return { say: <>{B(who)} called {B(bout)} a no contest. Every pick came back.</>, why: reason }
+    case 'fight_accept': return { say: <>{B(who)} said yes to {B(bout)}.</> }
+    case 'fight_decline': return { say: <>{B(who)} said no to {B(bout)}, so it was called off.</> }
+    case 'fight_force_open': return { say: <>{B(who)} opened picks on {B(bout)} without both yeses.</>, why: reason }
+    case 'card_reorder': {
+      const date = str(d.card_date)
+      return { say: <>{B(who)} changed the bout order{date ? ` for ${fmtCardDate(date)}` : ''}.</> }
+    }
+    case 'card_main_event': return { say: <>{B(who)} made {B(bout)} the main event.</> }
+    case 'fighter_create': return { say: <>{B(who)} added {B(str(d.nickname) ?? 'a fighter')} to the roster.</> }
+    case 'fighter_update': return { say: <>{B(who)} edited {B(str(d.nickname) ?? 'a fighter')}{d.hidden === true ? ' and hid them' : ''}.</> }
+    case 'member_create': {
+      const name = str(d.display_name) ?? str(d.username) ?? 'a member'
+      return { say: <>{B(who)} made an account for {B(name)}{str(d.username) ? ` (@${d.username})` : ''}{d.role === 'admin' ? ' as an admin' : ''}.</> }
+    }
+    case 'member_update': {
+      const name = str(d.display_name) ?? person(r.target_id)
+      const prev = (d.prev && typeof d.prev === 'object' ? d.prev : {}) as Dict
+      const bits: string[] = []
+      if (prev.role !== undefined && prev.role !== d.role) bits.push(d.role === 'admin' ? 'made them an admin' : 'made them a member')
+      if (prev.active !== undefined && prev.active !== d.active) bits.push(d.active ? 'switched the account on' : 'switched the account off')
+      if (prev.fighter_id !== undefined && prev.fighter_id !== d.fighter_id) bits.push(d.fighter_id ? `linked them to ${fighter(d.fighter_id)}` : 'unlinked their fighter')
+      if (prev.display_name !== undefined && prev.display_name !== d.display_name) bits.push('renamed them')
+      return { say: <>{B(who)} updated {B(name)}{bits.length ? `: ${bits.join(', ')}` : ''}.</> }
+    }
+    case 'password_reset': return { say: <>{B(who)} reset the password for {B(str(d.username) ? `@${d.username}` : person(r.target_id))}.</> }
+    case 'points_adjust': {
+      const n = typeof d.delta === 'number' ? d.delta : Number(d.delta)
+      const name = person(r.target_id)
+      return Number.isFinite(n) && n < 0
+        ? { say: <>{B(who)} took {fmtNum(-n)}&nbsp;pts from {B(name)}.</>, why: reason }
+        : { say: <>{B(who)} gave {B(name)} {Number.isFinite(n) ? fmtDelta(n) : 'some'}&nbsp;pts.</>, why: reason }
+    }
+    case 'bootstrap_admin': return { say: <>{B(str(d.username) ? `@${d.username}` : 'The first admin')} became the first admin.</> }
+    case 'invite_create': return { say: <>{B(who)} made an invite code.</> }
+    case 'invite_revoke': return { say: <>{B(who)} cancelled an invite code.</> }
+    default: {
+      const words = r.action.replace(/_/g, ' ')
+      return { say: <>{B(who)}: {words}.</>, why: reason }
+    }
+  }
+}

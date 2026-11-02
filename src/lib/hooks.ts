@@ -224,22 +224,22 @@ export const fmtKg = (v: number | string | null | undefined) => {
 export const cornerKg = (f: FightRow, side: Side, fighter?: Pick<Fighter, 'weight_kg'> | null) =>
   num(side === 'red' ? f.red_weight_kg : f.blue_weight_kg) ?? num(fighter?.weight_kg)
 
-/** "PIN (half nelson)" style — method upper-cased by caller's CSS if desired. */
+/** "Pin (half nelson)" style; the caller's CSS sets the case. Prefer methodPhrase for new UI. */
 export const methodMove = (method: string | null | undefined, move?: string | null) => {
-  const m = method ? (METHOD_LABEL[method] ?? method) : '—'
+  const m = method ? (METHOD_LABEL[method] ?? method) : 'No result'
   return move?.trim() ? `${m} (${move.trim()})` : m
 }
 
 /** "Lost by pin" */
-export const lostBy = (method: string | null | undefined) => `Lost by ${method ? (METHOD_LABEL[method] ?? method).toLowerCase() : '—'}`
+export const lostBy = (method: string | null | undefined) => (method ? `Lost by ${(METHOD_LABEL[method] ?? method).toLowerCase()}` : 'Lost')
 
-/** "6 – 3" (en dash) or '' when scores missing. */
+/** "6–3" (en dash inside score numerals, DESIGN 4) or '' when scores missing. */
 export const fmtScore = (a: number | null | undefined, b: number | null | undefined) =>
-  a == null || b == null ? '' : `${a} – ${b}`
+  a == null || b == null ? '' : `${a}–${b}`
 
 export const fmtRounds = (n: number | null | undefined) => (n == null ? '' : `${n} round${n === 1 ? '' : 's'}`)
 
-/** Asia/Baghdad calendar date (YYYY-MM-DD) — fallback when card_date is absent. */
+/** Asia/Baghdad calendar date (YYYY-MM-DD), the fallback when card_date is absent. */
 export const baghdadDate = (iso: string) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
 
@@ -264,9 +264,9 @@ export const boutSort = (a: BoutSortable, b: BoutSortable) =>
 /** Cancellation line: plain cancel / no contest / declined. */
 export function cancelCopy(f: FightRow): { title: string; sub: string } {
   switch (f.cancel_kind) {
-    case 'no_contest': return { title: 'NO CONTEST — points refunded', sub: 'Stopped with no result. No record change.' }
-    case 'declined': return { title: 'Fight declined', sub: 'A fighter passed on this booking. No record change.' }
-    default: return { title: 'Fight cancelled', sub: 'All points picks were refunded.' }
+    case 'no_contest': return { title: 'No contest', sub: 'Stopped with no result. No record change. Every pick came back in full.' }
+    case 'declined': return { title: 'Called off', sub: 'A fighter passed on this booking. No record change.' }
+    default: return { title: 'Called off', sub: 'Cancelled. Every pick came back in full.' }
   }
 }
 
@@ -296,7 +296,8 @@ export function liveMainOnly<T extends FightRow>(list: T[]): T[] {
   return list.map(f => (f.is_main_event && f.status === 'cancelled' ? { ...f, is_main_event: false } : f))
 }
 
-export const record = (f: Pick<Fighter, 'wins' | 'losses'> | null | undefined) => (f ? `${f.wins}-${f.losses}` : '0-0')
+/** "6–1" (en dash inside record numerals, DESIGN 4). */
+export const record = (f: Pick<Fighter, 'wins' | 'losses'> | null | undefined) => (f ? `${f.wins}–${f.losses}` : '0–0')
 
 export const fmtDate = (iso: string | null | undefined, withTime = true) => {
   if (!iso) return ''
@@ -309,3 +310,67 @@ export const fmtDate = (iso: string | null | undefined, withTime = true) => {
 export const fmtPts = (n: number | null | undefined) => `${(n ?? 0).toLocaleString()} pts`
 
 export const METHOD_LABEL: Record<string, string> = { pin: 'Pin', submission: 'Submission', decision: 'Decision' }
+
+
+// ---------- Presentational helpers (DESIGN 4: "Thu 6 Nov 22:30", 24h, Asia/Baghdad) ----------
+// Strings are assembled from parts in day-month order; en-US parts are used because en-GB abbreviates September as "Sept".
+
+const TZ = 'Asia/Baghdad'
+const dtf = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, ...o })
+const partsOf = (iso: string, o: Intl.DateTimeFormatOptions) =>
+  Object.fromEntries(dtf(o).formatToParts(new Date(iso)).map(p => [p.type, p.value])) as Record<string, string>
+
+/** "30 Oct" */
+export const fmtDay = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const p = partsOf(iso, { day: 'numeric', month: 'short' })
+  return `${p.day} ${p.month}`
+}
+
+/** "22:30" */
+export const fmtTime = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const p = partsOf(iso, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  return `${p.hour}:${p.minute}`
+}
+
+/** "Thu 6 Nov 21:58" */
+export const fmtDayTime = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const p = partsOf(iso, { weekday: 'short', day: 'numeric', month: 'short' })
+  return `${p.weekday} ${p.day} ${p.month} ${fmtTime(iso)}`
+}
+
+/** "Sep 2026" */
+export const fmtMonthYear = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const p = partsOf(iso, { month: 'short', year: 'numeric' })
+  return `${p.month} ${p.year}`
+}
+
+/** "Thu 30 Oct" for a YYYY-MM-DD card date (calendar date, no timezone shift). */
+export const fmtCardDay = (d: string) => {
+  const [y, m, day] = d.split('-').map(Number)
+  if (!y || !m || !day) return d
+  const dt = new Date(Date.UTC(y, m - 1, day, 12))
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' })
+    .formatToParts(dt).map(x => [x.type, x.value])) as Record<string, string>
+  return `${p.weekday} ${p.day} ${p.month}`
+}
+
+/** Today's card date in Asia/Baghdad (YYYY-MM-DD). */
+export const todayCard = () => baghdadDate(new Date().toISOString())
+
+/** "Pin, half nelson" / "Decision" (method plus finish move, sentence case). */
+export const methodPhrase = (method: string | null | undefined, move?: string | null) => {
+  const m = method ? (METHOD_LABEL[method] ?? method) : ''
+  const mv = move?.trim()
+  return m && mv ? `${m}, ${mv.toLowerCase()}` : m || mv || ''
+}
+
+/**
+ * Champion hook (title belt, CONTRACT B5, not in the DB yet). Reads an optional `is_champion`
+ * flag on a fighter-like row, so <ChampionBelt/> lights up once the backend provides it. Never faked.
+ */
+export const isChampion = (f: unknown): boolean =>
+  !!f && typeof f === 'object' && (f as { is_champion?: boolean | null }).is_champion === true

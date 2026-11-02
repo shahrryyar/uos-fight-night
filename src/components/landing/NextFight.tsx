@@ -1,160 +1,149 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { statusStampText } from '../../lib/copy'
 import type { PublicNextFight } from '../../lib/types'
-import Countdown from './Countdown'
+import { MatDivider } from '../brand'
+import { Alert, EmptyState, Paper, Skeleton, Stamp } from '../ui'
+import { useRemaining } from './Countdown'
 
-/** public_next_fight() row (Addendum A + B3 fields; optional so older backends still render). */
-export type NextFightRow = PublicNextFight & {
-  red_weight_kg?: number | string | null
-  blue_weight_kg?: number | string | null
-  is_main_event?: boolean | null
-}
-type State = { kind: 'loading' } | { kind: 'none' } | { kind: 'fight'; fight: NextFightRow }
+/** public_next_fight() row. Public page: nicknames and kg only, never photos or real names. */
+export type NextFightRow = PublicNextFight
+type State = { kind: 'loading' } | { kind: 'none' } | { kind: 'error' } | { kind: 'fight'; fight: NextFightRow }
 
-/** 72.5 → "72.5 kg", 70 → "70 kg", null/invalid → null. numeric may arrive as a string. */
+/** 72.5 -> "72.5 kg", 70 -> "70 kg", null/invalid -> null. numeric may arrive as a string. */
 function fmtKg(v: number | string | null | undefined): string | null {
   if (v === null || v === undefined || v === '') return null
   const n = Number(v)
   if (!Number.isFinite(n) || n <= 0) return null
-  return `${Number.isInteger(n) ? n : n.toFixed(1)} kg`
+  return `${Number.isInteger(n) ? n : n.toFixed(1)} kg`
 }
 
 const TZ = 'Asia/Baghdad'
-export function fmtFightTime(iso: string) {
-  const d = new Date(iso)
-  const day = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(',', '')
-  const time = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }).format(d)
-  return `${day} · ${time}`
-}
+const dayFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
+const longDayFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' })
+const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+/** "Thu 6 Nov" (Baghdad) */
+const fmtDay = (iso: string) => dayFmt.format(new Date(iso)).replace(',', '')
+/** "22:30" (24h, Baghdad) */
+const fmtTime = (iso: string) => timeFmt.format(new Date(iso))
 
-export function useNextFight() {
+function useNextFight() {
   const [state, setState] = useState<State>({ kind: 'loading' })
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.rpc('public_next_fight')
+    const row = (Array.isArray(data) ? data[0] : data) as NextFightRow | null | undefined
+    if (error) setState(s => (s.kind === 'fight' ? s : { kind: 'error' }))
+    else if (!row || !row.id) setState({ kind: 'none' })
+    else setState({ kind: 'fight', fight: row })
+  }, [])
   useEffect(() => {
     let alive = true
-    const load = async () => {
-      const { data, error } = await supabase.rpc('public_next_fight')
-      if (!alive) return
-      const row = (Array.isArray(data) ? data[0] : data) as NextFightRow | null | undefined
-      if (error || !row || !row.id) setState({ kind: 'none' })
-      else setState({ kind: 'fight', fight: row })
-    }
-    void load()
-    // refresh occasionally so a fight that locks/settles while the page is open updates
-    const id = setInterval(load, 60_000)
+    const run = () => { if (alive) void load() }
+    run()
+    // refresh so a bout that locks while the page is open updates (the stamp lands on the change)
+    const id = setInterval(run, 60_000)
     return () => { alive = false; clearInterval(id) }
-  }, [])
-  return state
+  }, [load])
+  const retry = useCallback(() => { setState({ kind: 'loading' }); void load() }, [load])
+  return { state, retry }
 }
 
-function CornerName({ corner, name, kg, align }: { corner: 'Red' | 'Blue'; name: string; kg?: string | null; align: 'left' | 'right' }) {
+function When({ fight, pastLock }: { fight: NextFightRow; pastLock: boolean }) {
+  const r = useRemaining(fight.scheduled_at)
+  const picks = fight.status === 'open' && !pastLock
+    ? <>Picks lock <b>{fmtTime(fight.lock_at)}</b></>
+    : <>Picks locked</>
   return (
-    <div className={`max-w-[72%] ${align === 'right' ? 'ml-auto text-right' : ''}`}>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-bone/80">{corner} corner</div>
-      <div className="font-display text-[clamp(2.4rem,12vw,4.25rem)] leading-[0.88] tracking-wide text-bone break-words [text-shadow:0_4px_18px_rgba(0,0,0,.45)]">
-        {name}
-      </div>
-      {kg && (
-        <div className="mt-1 font-display text-2xl leading-none tracking-wider text-gold tabular-nums [text-shadow:0_2px_10px_rgba(0,0,0,.5)]">
-          {kg}
-        </div>
+    <div className="when">
+      {r.done ? (
+        <>
+          <p className="label">Started</p>
+          <p className="t-sub">On the mat now</p>
+        </>
+      ) : (
+        <>
+          <p className="label">{fight.is_main_event ? 'Main event in' : 'Starts in'}</p>
+          <p className="data-lg"><time dateTime={fight.scheduled_at}>{r.text}</time></p>
+        </>
       )}
+      <p className="data">{picks}</p>
     </div>
   )
 }
 
-function Matchup({ red, blue, redKg, blueKg, dim = false }: { red: string; blue: string; redKg?: string | null; blueKg?: string | null; dim?: boolean }) {
+function Flyer({ fight }: { fight: NextFightRow }) {
+  const day = fmtDay(fight.scheduled_at)
+  const time = fmtTime(fight.scheduled_at)
+  const redKg = fmtKg(fight.red_weight_kg)
+  const blueKg = fmtKg(fight.blue_weight_kg)
+  const pastLock = useRemaining(fight.lock_at).done
+  const stamp = statusStampText(fight.status, { pastLock })
+  // Stamps are state only. Open with picks running reads from "Picks lock 21:45" under the countdown
+  // (no stamp row, like the mockup), so the stamp only shows once the state turns (Locked, Booked...).
+  // It stays mounted but hidden so it lands when the bout locks while the page is open.
+  const quiet = fight.status === 'open' && !pastLock
+  // admins often title the main event "Main event": the countdown label already says it
+  const showTitle = !!fight.title && !['main event', stamp.toLowerCase()].includes(fight.title.trim().toLowerCase())
   return (
-    <div className={`relative min-h-[20rem] overflow-hidden ${dim ? 'opacity-60 grayscale-[.4]' : ''}`}>
-      <div className="ufn-slab-red absolute inset-0" aria-hidden />
-      <div className="ufn-slab-blue absolute inset-0" aria-hidden />
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-        <line x1="0" y1="64" x2="100" y2="42" stroke="#e3b341" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      </svg>
-      {/* Badge sits in its own grid row so long (two-line) names grow the poster instead of running under it. */}
-      <div className="relative grid min-h-[20rem] grid-rows-[1fr_auto_1fr] gap-y-1 p-5">
-        <div className="ufn-rise self-start" style={{ ['--d' as string]: '120ms' }}><CornerName corner="Red" name={red} kg={redKg} align="left" /></div>
-        <div className="flex justify-center py-1">
-          <div className="ufn-slam grid h-20 w-20 -rotate-12 place-items-center rounded-full border-2 border-gold bg-ink shadow-[0_0_40px_rgba(227,179,65,.35)]"
-            style={{ ['--d' as string]: '420ms' }}>
-            <span className="ufn-vs font-display text-5xl leading-none pt-1">VS</span>
-          </div>
-        </div>
-        <div className="ufn-rise self-end" style={{ ['--d' as string]: '260ms' }}><CornerName corner="Blue" name={blue} kg={blueKg} align="right" /></div>
-      </div>
+    <Paper as="article" edges="both" bleed className={quiet ? 'flyer' : 'flyer flyer--stamped'} aria-labelledby="nf-h">
+      <p className="snipe"><span className="nowrap">{day}</span> · <span className="data">{time}</span></p>
+      <h2 id="nf-h" className="sr-only">
+        Next fight, {longDayFmt.format(new Date(fight.scheduled_at))} at {time}.
+        {fight.is_main_event ? ' Main event: ' : ' '}{fight.red_nickname} versus {fight.blue_nickname}.
+      </h2>
+      <Stamp className="flyer-stamp" rot={-4} land stateKey={`${stamp}|${fight.status}`} hidden={quiet} aria-hidden="true">{stamp}</Stamp>
+      {showTitle && <p className="flyer-title t-sub">{fight.title}</p>}
+      <p className="t-poster c-red first" aria-hidden="true"><bdi>{fight.red_nickname}</bdi></p>
+      <p className="corner-line">
+        <span className="corner corner--red label">Red corner</span>
+        {redKg && <span className="data"><b>{redKg}</b></span>}
+      </p>
+      <div className="vs-band" aria-hidden="true"><span className="stamp stamp--lg">VS</span></div>
+      <p className="t-poster c-blue" aria-hidden="true"><bdi>{fight.blue_nickname}</bdi></p>
+      <p className="corner-line">
+        <span className="corner corner--blue label">Blue corner</span>
+        {blueKg && <span className="data"><b>{blueKg}</b></span>}
+      </p>
+      <MatDivider className="flyer-divider" />
+      <When fight={fight} pastLock={pastLock} />
+    </Paper>
+  )
+}
+
+/** Built from the flyer's own classes (names sized in em of the poster type), so it is the loaded
+ *  flyer's height at every breakpoint and the CTA under it does not jump when the fight arrives. */
+function FlyerSkeleton() {
+  return (
+    <div className="flyer-loading" role="status" aria-live="polite">
+      <Paper edges="both" bleed className="flyer">
+        <span className="label flyer-loading-label">Loading the next fight…</span>
+        <p className="t-poster first"><Skeleton w="86%" h="1.76em" /></p>
+        <p className="corner-line"><Skeleton w={150} h={24} /></p>
+        <div className="vs-band"><Skeleton w={84} h="72%" /></div>
+        <p className="t-poster"><Skeleton className="sk-name-b" w="68%" h="" /></p>
+        <p className="corner-line"><Skeleton w={150} h={24} /></p>
+        <Skeleton className="flyer-divider" h={20} />
+        <div className="when"><Skeleton h="3.4rem" style={{ gridColumn: '1 / -1' }} /></div>
+      </Paper>
     </div>
   )
 }
 
 export default function NextFight() {
-  const state = useNextFight()
-
-  return (
-    <section aria-labelledby="next-up" className="overflow-hidden rounded-2xl border border-line bg-ink shadow-[0_30px_80px_-30px_rgba(215,25,42,.45)]">
-      <div className="flex items-center justify-between border-b border-line bg-surface px-4 py-3">
-        <h2 id="next-up" className="font-display text-2xl tracking-[0.12em] text-gold">Next up</h2>
-        {state.kind === 'fight' && <StatusPill status={state.fight.status} />}
-      </div>
-
-      {state.kind === 'loading' && (
-        <div className="h-[20rem] animate-pulse bg-gradient-to-br from-red-dark/40 via-surface to-blue-dark/40" aria-label="Loading next fight" />
-      )}
-
-      {state.kind === 'none' && (
-        <>
-          <Matchup red="???" blue="???" dim />
-          <div className="space-y-1 px-5 py-5 text-center">
-            <p className="font-display text-4xl tracking-wider text-bone">Next fight night TBA</p>
-            <p className="text-sm text-muted">The card drops when the admins book it. Stay ready.</p>
-          </div>
-        </>
-      )}
-
-      {state.kind === 'fight' && (
-        <>
-          {state.fight.is_main_event && (
-            <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#a87a1c] via-gold to-[#a87a1c] py-1.5 text-ink">
-              <span aria-hidden className="h-1.5 w-1.5 rotate-45 bg-ink" />
-              <span className="font-display text-xl leading-none tracking-[0.3em] pl-[0.3em] pt-0.5">Main event</span>
-              <span aria-hidden className="h-1.5 w-1.5 rotate-45 bg-ink" />
-            </div>
-          )}
-          <Matchup red={state.fight.red_nickname} blue={state.fight.blue_nickname}
-            redKg={fmtKg(state.fight.red_weight_kg)} blueKg={fmtKg(state.fight.blue_weight_kg)} />
-          <div className="space-y-4 px-4 py-5">
-            <div className="text-center">
-              {state.fight.title && (
-                <p className="font-display text-3xl leading-none tracking-wider text-bone">{state.fight.title}</p>
-              )}
-              <p className="mt-1 text-sm font-medium text-muted">
-                {fmtFightTime(state.fight.scheduled_at)} <span className="text-muted/70">(Baghdad)</span>
-              </p>
-            </div>
-            <Countdown target={state.fight.scheduled_at} />
-            <p className="text-center text-xs text-muted">
-              {state.fight.status === 'open'
-                ? <>Picks lock {fmtFightTime(state.fight.lock_at)}. Members only.</>
-                : state.fight.status === 'scheduled'
-                  ? <>Booked. Picks open once both fighters accept. Members only.</>
-                  : <>Picks are locked. Results land in the app.</>}
-            </p>
-          </div>
-        </>
-      )}
-    </section>
-  )
-}
-
-function StatusPill({ status }: { status: string }) {
-  const open = status === 'open'
-  const booked = status === 'scheduled'
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${open ? 'border-gold/60 text-gold' : booked ? 'border-bone/30 text-bone/80' : 'border-line text-muted'}`}>
-      {open
-        ? <span className="ufn-pulse h-2 w-2 rounded-full bg-gold" aria-hidden />
-        : booked
-          ? <span className="h-2 w-2 rounded-full border border-bone/70" aria-hidden />
-          : <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>}
-      {open ? 'Picks open' : booked ? 'Booked' : 'Picks locked'}
-    </span>
-  )
+  const { state, retry } = useNextFight()
+  if (state.kind === 'loading') return <FlyerSkeleton />
+  if (state.kind === 'error') {
+    return (
+      <Alert title="Couldn't load the next fight." onRetry={retry}>
+        Check your connection and try again.
+      </Alert>
+    )
+  }
+  if (state.kind === 'none') {
+    return (
+      <EmptyState art="mat" title="Nothing on the card yet"
+        body="The next fight shows up here once admins book it and both fighters say yes." />
+    )
+  }
+  return <Flyer fight={state.fight} />
 }

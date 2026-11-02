@@ -2,104 +2,199 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { fmtKg, must, useAsync, useDisplayNames, useFightersMap, type FighterStats } from '../lib/hooks'
-import { formatStreak } from '../lib/math'
-import type { BettorRank } from '../lib/types'
-import { Empty, ErrorBox, Loading, NO_CASH, PageTitle, StreakPill, Tabs } from '../components/member/ui'
+import { fmtKg, isChampion, must, useAsync, useDisplayNames, type FighterStats } from '../lib/hooks'
+import { fmtDelta, fmtNum } from '../lib/copy'
+import type { BettorRank, Fighter } from '../lib/types'
+import { ChampionBelt } from '../components/brand'
+import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp, TabPanel, Tabs } from '../components/ui'
 
-type Tab = 'fighters' | 'bettors'
+type Tab = 'fighters' | 'pickers'
 
 export default function Leaderboard() {
-  const [tab, setTab] = useState<Tab>('fighters')
+  const [tab, setTab] = useState<Tab>(() => (typeof location !== 'undefined' && location.hash === '#pickers' ? 'pickers' : 'fighters'))
   return (
-    <div>
-      <PageTitle sub={NO_CASH}>Rankings</PageTitle>
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'fighters', label: 'Fighters' }, { id: 'bettors', label: 'Bettors' }]} />
-      {tab === 'fighters' ? <FighterTable /> : <BettorTable />}
+    <div className="pg-ranks">
+      <h1 className="t-title">Ranks</h1>
+      <Tabs label="Rankings" value={tab} onChange={setTab}
+        tabs={[{ id: 'fighters', label: 'Fighters' }, { id: 'pickers', label: 'Pickers' }]} />
+      <TabPanel id="fighters" value={tab}><FighterBoard /></TabPanel>
+      <TabPanel id="pickers" value={tab}><PickerBoard /></TabPanel>
     </div>
   )
 }
 
-const medal = (r: number | null) => (r === 1 ? 'text-gold' : r === 2 ? 'text-bone' : r === 3 ? 'text-[#c98a4b]' : 'text-muted')
+const kgText = (v: number | string | null | undefined) => fmtKg(v).replace(' ', ' ')
+const recordOf = (r: Pick<FighterStats, 'wins' | 'losses'>) => `${r.wins}–${r.losses}`
 
-function FighterTable() {
-  const st = useAsync(async () => must(await supabase.from('fighter_rankings').select('*')) as FighterStats[], [])
-  const roster = useFightersMap()
-  if (st.loading) return <Loading />
-  if (st.error) return <ErrorBox error={st.error} onRetry={() => void st.reload()} />
-  const rows = st.data ?? []
-  const ranked = rows.filter(r => r.ranked).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
-  const unranked = rows.filter(r => !r.ranked).sort((a, b) => b.fights - a.fights || b.elo - a.elo)
-  if (!rows.length) return <Empty>No fighters yet.</Empty>
-
-  const row = (r: FighterStats) => (
-    <li key={r.fighter_id}>
-      <Link to={`/app/fighters/${r.fighter_id}`} className="flex min-h-14 items-center gap-2 px-3 py-2">
-        <span className={`w-8 shrink-0 font-display text-2xl leading-none text-center ${medal(r.rank)}`}>{r.rank ?? '–'}</span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-xl leading-none tracking-wide">{r.nickname}</p>
-          <p className="mt-0.5 text-xs text-muted tabular-nums">
-            {r.wins}-{r.losses} · {r.ranked ? `${r.fights} fights` : `${r.fights}/3 fights`}
-          </p>
-        </div>
-        <StreakPill streak={r.streak} label={formatStreak(r.streak)} />
-        <span className="w-11 text-right text-xs tabular-nums text-bone/90">{fmtKg(r.weight_kg ?? roster.data?.get(r.fighter_id)?.weight_kg).replace(' kg', '') || '—'}</span>
-        <span className="w-8 text-right text-xs tabular-nums text-bone/90">{r.total_rounds ?? 0}</span>
-        <span className="w-12 text-right font-display text-2xl leading-none tabular-nums">{r.elo}</span>
-      </Link>
-    </li>
-  )
-
-  const head = (
-    <li aria-hidden className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted">
-      <span className="w-8 text-center">#</span>
-      <span className="flex-1">Fighter</span>
-      <span className="w-11 text-right">Kg</span>
-      <span className="w-8 text-right">Rds</span>
-      <span className="w-12 text-right">Elo</span>
-    </li>
-  )
-
-  return (
-    <div className="space-y-4">
-      <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
-        {ranked.length > 0 && head}
-        {ranked.length ? ranked.map(row) : <li className="p-4 text-sm text-muted">Nobody has 3 fights yet.</li>}
-      </ul>
-      {unranked.length > 0 && (
-        <div>
-          <p className="mb-1 text-[11px] uppercase tracking-widest text-muted">Unranked — needs 3 fights</p>
-          <ul className="divide-y divide-line rounded-2xl border border-line bg-surface opacity-80">{!ranked.length && head}{unranked.map(row)}</ul>
-        </div>
-      )}
-    </div>
-  )
+function Streak({ n, onPaper }: { n: number; onPaper?: boolean }) {
+  if (!n) return null
+  const label = n > 0 ? `W${n}` : `L${-n}`
+  const style = onPaper && n > 0 ? { background: 'var(--color-toner)', color: 'var(--color-bone)' } : undefined
+  return <span className={n > 0 ? 'streak streak--w' : 'streak'} style={style}><span className="sr-only">Streak </span>{label}</span>
 }
 
-function BettorTable() {
+interface Board { rows: FighterStats[]; fighters: Map<string, Fighter>; lastDelta: Map<string, number> }
+
+function FighterBoard() {
   const { profile } = useAuth()
-  const st = useAsync(async () =>
-    must(await supabase.from('leaderboard_bettors').select('*').order('rank', { ascending: true }).limit(100)) as (BettorRank & { display_name?: string | null })[], [])
-  const names = useDisplayNames((st.data ?? []).filter(r => !r.display_name).map(r => r.user_id))
-  if (st.loading) return <Loading />
-  if (st.error) return <ErrorBox error={st.error} onRetry={() => void st.reload()} />
-  const rows = st.data ?? []
-  if (!rows.length) return <Empty>No members yet.</Empty>
+  const st = useAsync<Board>(async () => {
+    const [r, f, last] = await Promise.all([
+      supabase.from('fighter_rankings').select('*'),
+      supabase.from('fighters').select('*'),
+      supabase.from('fight_results').select('fighter_id,elo_delta,settled_at').order('settled_at', { ascending: false }).limit(1000),
+    ])
+    const lastDelta = new Map<string, number>()
+    for (const x of must(last) as { fighter_id: string; elo_delta: number | null }[]) {
+      if (!lastDelta.has(x.fighter_id) && x.elo_delta != null) lastDelta.set(x.fighter_id, x.elo_delta)
+    }
+    return { rows: must(r) as FighterStats[], fighters: new Map((must(f) as Fighter[]).map(x => [x.id, x])), lastDelta }
+  }, [])
+
+  if (st.loading && !st.data) return <Loading label="Loading the ranks…" shape="rows" />
+  if (st.error) return <Alert title="Couldn't load the ranks." onRetry={() => void st.reload()} className="mt-4">Check your connection and try again.</Alert>
+  const { rows, fighters, lastDelta } = st.data!
+  const visible = rows.filter(r => !fighters.get(r.fighter_id)?.hidden)
+  const ranked = visible.filter(r => r.ranked).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+  const unranked = visible.filter(r => !r.ranked).sort((a, b) => b.fights - a.fights || b.elo - a.elo || a.nickname.localeCompare(b.nickname))
+  const mine = profile?.fighter_id ?? null
+  const [top, ...rest] = ranked
+
   return (
-    <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
-      {rows.map(r => {
-        const me = r.user_id === profile?.id
-        return (
-          <li key={r.user_id} className={`flex min-h-14 items-center gap-3 px-3 py-2 ${me ? 'bg-gold/10' : ''}`}>
-            <span className={`w-9 font-display text-2xl leading-none text-center ${medal(r.rank)}`}>{r.rank}</span>
-            <p className="min-w-0 flex-1 truncate font-semibold">
-              {r.display_name || names.get(r.user_id) || 'Member'}{me && <span className="ml-1 text-xs font-bold text-gold">YOU</span>}
-            </p>
-            <span className="font-display text-2xl leading-none tabular-nums text-gold">{Number(r.balance).toLocaleString()}</span>
-            <span className="text-xs text-muted">pts</span>
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      <p className="intro t-help">Ranked by Elo. Everyone starts at 1,000. You need 3 fights to get a rank.</p>
+      {!visible.length && <EmptyState title="No fighters yet" body="Admins add fighters to the roster. They show up here once they do." />}
+
+      {top && <TopOne r={top} f={fighters.get(top.fighter_id)} me={top.fighter_id === mine} />}
+
+      {rest.length > 0 && (
+        <>
+          <p className="colhead" aria-hidden="true"><span className="label">Fighter</span><span className="label">Elo · last bout</span></p>
+          <ol className="rows lb" role="list">
+            {rest.map(r => {
+              const me = r.fighter_id === mine
+              const f = fighters.get(r.fighter_id)
+              const kg = kgText(r.weight_kg ?? f?.weight_kg)
+              const delta = lastDelta.get(r.fighter_id)
+              return (
+                <li key={r.fighter_id}>
+                  <Link className={me ? 'row row-link row--me' : 'row row-link'} to={`/app/fighters/${r.fighter_id}`} aria-current={me ? 'true' : undefined}>
+                    <span className="rank"><span className="sr-only">Rank </span>{r.rank}</span>
+                    <span>
+                      <span className="t-sub">
+                        {isChampion(f) && <ChampionBelt size={20} label="Champion" className="mr-1" />}<bdi>{r.nickname}</bdi>
+                        {me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}
+                      </span>
+                      <span className="meta data">
+                        <span className="nowrap">{recordOf(r)}{kg && <> · {kg}</>}</span>
+                        <Streak n={r.streak} onPaper={me} />
+                      </span>
+                    </span>
+                    <span className="elo">
+                      <span className="data-lg"><span className="sr-only">Elo </span>{fmtNum(r.elo)}</span>
+                      {delta != null && <span className="data"><span className="sr-only">Last bout </span>{fmtDelta(delta)}</span>}
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ol>
+        </>
+      )}
+
+      {unranked.length > 0 && (
+        <section className="section" aria-labelledby="nr">
+          <h2 id="nr" className="t-head">Not ranked yet</h2>
+          <ul className="rows lb" role="list" style={{ marginTop: 6 }}>
+            {unranked.map(r => {
+              const me = r.fighter_id === mine
+              const kg = kgText(r.weight_kg ?? fighters.get(r.fighter_id)?.weight_kg)
+              return (
+                <li key={r.fighter_id}>
+                  <Link className={me ? 'row row-link row--me' : 'row row-link'} style={{ gridTemplateColumns: '1fr auto' }}
+                    to={`/app/fighters/${r.fighter_id}`} aria-current={me ? 'true' : undefined}>
+                    <span>
+                      <span className="t-sub"><bdi>{r.nickname}</bdi>{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
+                      <span className="meta data"><span className="nowrap">{recordOf(r)}{kg && <> · {kg}</>}</span></span>
+                    </span>
+                    <span className="data nowrap" style={{ color: me ? 'var(--color-toner)' : 'var(--color-bone)' }}><b>{Math.min(r.fights, 3)} of 3</b> fights</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+    </>
+  )
+}
+
+/** #1 on flat paper with a photo, no tape (DESIGN 11.12). */
+function TopOne({ r, f, me }: { r: FighterStats; f?: Fighter; me: boolean }) {
+  const kg = kgText(r.weight_kg ?? f?.weight_kg)
+  return (
+    <Paper className="top1" aria-label={`Rank 1: ${r.nickname}`}>
+      <HalftonePhoto path={f?.photo_path} name={r.nickname} size={96} priority />
+      <div>
+        <p className="n" aria-hidden="true">1</p>
+        <Link className="t-sub" to={`/app/fighters/${r.fighter_id}`} style={{ display: 'block', marginTop: 6, textDecoration: 'none', color: 'inherit' }}>
+          {isChampion(f) && <ChampionBelt size={22} label="Champion" className="mr-1" />}<bdi>{r.nickname}</bdi>
+          {me && <Stamp tone="ink" size="sm" rot={-4} style={{ marginLeft: 6, verticalAlign: 2 }}>You</Stamp>}
+        </Link>
+        <p className="data-lg">{fmtNum(r.elo)} <span className="label">Elo</span></p>
+        <p className="data c-2" style={{ marginTop: 4 }}>
+          <span className="nowrap" style={{ marginRight: 8 }}>{recordOf(r)}{kg && <> · {kg}</>}</span><Streak n={r.streak} onPaper />
+        </p>
+      </div>
+    </Paper>
+  )
+}
+
+type PickerRow = BettorRank & { display_name?: string | null }
+
+function PickerBoard() {
+  const { profile } = useAuth()
+  const st = useAsync(async () => {
+    const top = must(await supabase.from('leaderboard_bettors').select('*').order('rank', { ascending: true }).limit(100)) as PickerRow[]
+    let mine: PickerRow | null = null
+    if (profile?.id && !top.some(r => r.user_id === profile.id)) {
+      mine = (must(await supabase.from('leaderboard_bettors').select('*').eq('user_id', profile.id).maybeSingle()) as PickerRow | null)
+    }
+    return { top, mine }
+  }, [profile?.id])
+  const all = [...(st.data?.top ?? []), ...(st.data?.mine ? [st.data.mine] : [])]
+  const names = useDisplayNames(all.filter(r => !r.display_name).map(r => r.user_id))
+
+  if (st.loading && !st.data) return <Loading label="Loading the pickers…" shape="rows" />
+  if (st.error) return <Alert title="Couldn't load the pickers." onRetry={() => void st.reload()} className="mt-4">Check your connection and try again.</Alert>
+  const { top, mine } = st.data!
+
+  const row = (r: PickerRow) => {
+    const me = r.user_id === profile?.id
+    const name = r.display_name || names.get(r.user_id) || 'Member'
+    return (
+      <li key={r.user_id} className={me ? 'row row--me' : 'row'} aria-current={me ? 'true' : undefined}>
+        <span className="rank"><span className="sr-only">Rank </span>{r.rank}</span>
+        <span className="t-sub"><bdi>{name}</bdi>{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
+        <span className="data-lg">{fmtNum(Number(r.balance))}<span className="sr-only"> points</span></span>
+      </li>
+    )
+  }
+
+  return (
+    <>
+      <p className="intro t-help">Ranked by points. Everyone starts with 1,000 and gets 100 more every Monday.</p>
+      {!top.length ? <EmptyState title="Nobody here yet" body="Members show up here after their first login." /> : (
+        <>
+          <p className="colhead" aria-hidden="true"><span className="label">Member</span><span className="label">Points</span></p>
+          <ol className="rows lb" role="list">{top.map(row)}</ol>
+          {mine && (
+            <>
+              <p className="colhead" style={{ marginTop: 14 }}><span className="label">Your spot</span></p>
+              <ol className="rows lb" role="list">{row(mine)}</ol>
+            </>
+          )}
+        </>
+      )}
+    </>
   )
 }

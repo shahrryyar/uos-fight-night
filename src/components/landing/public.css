@@ -1,0 +1,116 @@
+/*
+ * Public screens (landing, login, 404, splash). Only layout glue for the codex hero art and the lockup;
+ * every material, type and colour rule comes from src/index.css (tokens.css + foundation).
+ * Flat fills only: no glow, no load animation.
+ */
+
+/* ---------- landing: lockup on the ink wall, the flyer right under it, then the silhouettes poster ----------
+   DESIGN 10: the first viewport holds the flyer, the sentence and the CTA (390x844: CTA bottom ~800).
+   The codex silhouettes poster opens the scroll after the CTA, bleeding edge to edge into the rules. */
+.pg-landing { overflow-x: clip; }  /* the date snipe hangs off the right edge, like the mockup */
+.lp-hero { padding-top: max(12px, env(safe-area-inset-top)); }
+.lp-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lp-brand { margin: 0; line-height: 0; }
+/* lockup is 2.465:1; 178px wide = 72px tall */
+.lp-brand .logo { width: min(178px, calc(100vw - 2 * var(--gutter) - 96px)); height: auto; }
+.lp-top .top-login { flex: none; margin-top: 4px; }
+
+.lp-next { position: relative; margin-top: 14px; }
+
+.pg-landing .pitch { margin-top: 24px; }
+.pg-landing .pitch .btn { margin-top: 14px; }
+/* the poster: the black top of the print melts into the ink wall, the torn red sheet and the grip show */
+.lp-art.art--hero { aspect-ratio: 6 / 5; margin-top: 40px; background: transparent; }
+.lp-art img { object-position: 50% 74%; }
+.lp-art + .section { margin-top: 28px; }
+.lp-sub { margin: 6px 0 18px; }
+.lp-share-sub { margin-top: 6px; }
+.lp-share { margin-top: 14px; }
+.lp-foot { margin-bottom: max(24px, env(safe-area-inset-bottom)); }
+
+/* ---------- the flyer (next fight) ---------- */
+.flyer .flyer-stamp { margin-top: 2px; }
+.flyer .flyer-title { margin-top: 14px; max-width: 70%; }
+.flyer .t-poster { font-size: clamp(3rem, 15vw, 4rem); overflow-wrap: anywhere; }
+/* no stamp row (picks open): the first name just clears the snipe, as in the mockup */
+.flyer .t-poster.first { margin-top: 30px; }
+.flyer .flyer-title + .t-poster.first, .flyer--stamped .t-poster.first { margin-top: 16px; }
+.flyer { padding-bottom: 26px; }
+.flyer .vs-band { margin-block: 8px; }
+.flyer .flyer-divider { margin-top: 16px; margin-bottom: 0; }
+.flyer .when { border-top: 0; margin-top: 10px; }
+.flyer .when .t-sub { text-align: end; }
+.flyer .when .data-lg { font-size: clamp(1.375rem, 7vw, 1.75rem); white-space: nowrap; }
+.flyer .when > .data { grid-column: 1 / -1; }
+/* loading: the label sits where the date snipe goes, toner on paper */
+.flyer-loading .sk-name-b { height: 1.76em; }  /* two poster lines; one line on short screens (smaller type) */
+.flyer-loading .flyer-loading-label { position: absolute; top: 18px; left: calc(var(--gutter) + 4px); color: var(--color-toner); }
+
+/* ---------- short viewports: keep flyer, sentence and CTA in the first viewport ----------
+   Laptops (1280x800) get a light trim; phones at 375x667 and below a tighter flyer with smaller names. */
+@media (max-height: 820px) {
+  .flyer .t-poster.first { margin-top: 24px; }
+  .flyer .vs-band { height: 56px; }
+  .flyer .corner-line { margin-top: 8px; }
+  .flyer .flyer-divider { margin-top: 12px; }
+  .pg-landing .pitch { margin-top: 20px; }
+}
+@media (max-height: 760px) {
+  .lp-brand .logo { width: min(138px, calc(100vw - 2 * var(--gutter) - 96px)); }  /* 56px tall */
+  .lp-top .top-login { margin-top: 0; }
+  .lp-next { margin-top: 8px; }
+  .flyer .t-poster { font-size: clamp(2.25rem, 12vw, 2.875rem); }
+  .flyer .t-poster.first { margin-top: 22px; }
+  .flyer .flyer-title + .t-poster.first, .flyer--stamped .t-poster.first { margin-top: 10px; }
+  .flyer .vs-band { height: 44px; margin-block: 4px; }
+  .flyer .vs-band .stamp { font-size: 1.375rem; padding: 4px 10px 3px; border-width: 3px; }
+  .flyer .corner-line { margin-top: 6px; }
+  .flyer .flyer-divider { margin-top: 10px; }
+  .flyer .when { margin-top: 6px; }
+  .flyer .when .data-lg { font-size: clamp(1.25rem, 6vw, 1.5rem); }
+  .flyer { padding-bottom: 18px; }
+  .pg-landing .pitch { margin-top: 16px; }
+  .pg-landing .pitch .btn { margin-top: 10px; }
+  .flyer-loading .sk-name-b { height: .88em; }
+}
+@media (max-height: 600px) {
+  .lp-hero { padding-top: max(8px, env(safe-area-inset-top)); }
+  .lp-brand .logo { width: min(118px, calc(100vw - 2 * var(--gutter) - 96px)); }  /* 48px tall */
+  .flyer .t-poster { font-size: 2rem; }
+  .flyer .t-poster.first { margin-top: 20px; }
+  .flyer .vs-band { height: 38px; }
+  .flyer .when .data-lg { font-size: 1.25rem; }
+  .flyer { padding-bottom: 14px; }
+}
+
+/* ---------- login: the dorm mat photo dims behind the taped card ---------- */
+.pg-login { position: relative; min-height: 100dvh; }
+.pg-login .lp-bar { padding-top: max(12px, env(safe-area-inset-top)); }
+.pg-login .lp-bar .logo { width: 156px; height: auto; }
+.pg-login { display: flex; flex-direction: column; }
+/* stage = header + main. The mat photo is pinned to the stage, not the viewport, so its tape line
+   (74.67% down the picture) sits a fixed 24px above the footer strip, in the middle of main's 48px
+   bottom padding, at every screen height. object-position y = 74.67% keeps the tape at 74.67% of
+   the box whichever way cover crops, so the box is sized to (stage - 24px) / .7467 and the stage
+   clips what hangs below. */
+.pg-login .lp-stage { position: relative; isolation: isolate; flex: 1 0 auto; display: flex; flex-direction: column; overflow: hidden; overflow: clip; }
+.pg-login .lp-stage > main { flex: 1 0 auto; padding-bottom: 48px; }
+/* 320x700-class screens: the stack was 706px tall, so the page scrolled 6px; 42px still leaves the tape
+   18px clear of the after-line */
+@media (max-height: 720px) { .pg-login .lp-stage > main { padding-bottom: 42px; } }
+.pg-login .art--bg { position: absolute; inset: 0 0 auto 0; height: calc((100% - 24px) / .7467); }
+.pg-login .art--bg > img, .pg-login .art--bg > picture > img { opacity: .24; object-position: 50% 74.67%; }
+.pg-login .after { max-width: 34rem; }
+/* full-width flat ink strip (same toner tile as the backdrop) pinned to the bottom: the hairline rule
+   reads on it and the photo never sits behind the credit */
+.pg-login .lp-foot-strip { background: url(/textures/toner-dark.png) 0 0 / 384px 384px, var(--color-ink); }
+.pg-login .lp-foot-strip .site-foot { margin: 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+
+/* ---------- 404 ---------- */
+.pg-404 .lp-bar .logo { width: 156px; height: auto; }
+.pg-404 .empty { padding-top: 8px; }
+.pg-404 .site-foot { margin-bottom: max(24px, env(safe-area-inset-bottom)); }
+
+/* ---------- splash (auth gate + lazy route fallback) ---------- */
+.splash { display: grid; place-content: center; justify-items: center; gap: 14px; min-height: 100dvh; padding: 24px; color: var(--color-bone-2); }
+.splash--inline { min-height: 50dvh; }

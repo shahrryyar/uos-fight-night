@@ -1,17 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#0b0b0d" />
+    <meta name="color-scheme" content="dark" />
     <title>UoS Fight Night</title>
-    <meta name="description" content="Records, picks and fun points for dorm fight night. Members only." />
+    <meta name="description" content="Dorm wrestling nights at the University of Sulaimani. Records, picks and fun points. Members only." />
+
+    <!-- icons: colour mark by default, mono mark for forced-colours / high-contrast UIs -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-mono.svg" media="(forced-colors: active)" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <meta property="og:type" content="website" />
     <meta property="og:title" content="UoS Fight Night" />
-    <meta property="og:description" content="Who wins tonight? Pick your fighter. Members only, fun points, no cash value." />
+    <meta property="og:description" content="Who wins tonight? Pick your fighter. Members only. Fun points only." />
     <meta property="og:site_name" content="UoS Fight Night" />
     <meta property="og:url" content="https://uos-fight-night.pages.dev/" />
     <meta property="og:image" content="https://uos-fight-night.pages.dev/og.png" />
@@ -19,15 +25,22 @@
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="UoS Fight Night: red corner vs blue corner fight poster" />
+    <meta property="og:image:alt" content="UoS Wrestling Fight Night logo beside two wrestlers locked up: who wins tonight? Members only." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="UoS Fight Night" />
-    <meta name="twitter:description" content="Who wins tonight? Pick your fighter. Members only, fun points, no cash value." />
+    <meta name="twitter:description" content="Who wins tonight? Pick your fighter. Members only. Fun points only." />
     <meta name="twitter:image" content="https://uos-fight-night.pages.dev/og.png" />
-    <meta name="twitter:image:alt" content="UoS Fight Night: red corner vs blue corner fight poster" />
+    <meta name="twitter:image:alt" content="UoS Wrestling Fight Night logo beside two wrestlers locked up: who wins tonight? Members only." />
+
+    <!-- type: Big Shoulders (display), Archivo (UI), Courier Prime (data). Arabic faces load only on demand (unicode-range). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700&family=Big+Shoulders:opsz,wght@10..72,800;10..72,900&family=Courier+Prime:wght@400;700&family=Noto+Kufi+Arabic:wght@700&family=Noto+Sans+Arabic:wght@400;700&display=swap" />
+    <!-- above-fold brand lockup for the logged-out screens ("/", "/login", 404); app/admin routes show the mark instead -->
+    <script>if(!/^\/(app|admin)(\/|$)/.test(location.pathname)){var l=document.createElement('link');l.rel='preload';l.as='image';l.type='image/svg+xml';l.href='/brand/lockup.svg';l.setAttribute('fetchpriority','high');document.head.appendChild(l)}</script>
+    <!-- wall + paper textures are needed for first paint -->
+    <link rel="preload" href="/textures/toner-dark.png" as="image" type="image/png" />
+    <link rel="preload" href="/textures/paper-grain.png" as="image" type="image/png" />
   </head>
   <body>
     <div id="root"></div>

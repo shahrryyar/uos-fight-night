@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavTabs } from '../../components/ui'
 
 // Absolute paths on purpose: AdminHome is mounted under the `/admin/*` splat route, and
 // React Router v7 resolves relative links against the full splat URL, so `to="members"`
@@ -13,21 +13,8 @@ export const adminTabs = [
   { to: '/admin/log', label: 'Log' },
 ] as const
 
+/** `nav.tabs.tabs--5`: five equal columns that all fit at 320px. NavLink sets aria-current="page",
+ *  which `.tab[aria-current="page"]` fills bone (static cue, not colour alone). */
 export default function AdminTabs() {
-  return (
-    <nav className="-mx-4 mb-4 overflow-x-auto px-4 [scrollbar-width:none]" aria-label="Admin sections">
-      <ul className="flex gap-2 w-max">
-        {adminTabs.map(t => (
-          <li key={t.to}>
-            <NavLink to={t.to}
-              className={({ isActive }) =>
-                `flex items-center min-h-11 rounded-full px-4 text-sm font-bold uppercase tracking-wider border transition ${
-                  isActive ? 'bg-gold text-ink border-gold' : 'bg-surface border-line text-muted hover:text-bone'}`}>
-              {t.label}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  )
+  return <NavTabs items={[...adminTabs]} label="Admin sections" />
 }

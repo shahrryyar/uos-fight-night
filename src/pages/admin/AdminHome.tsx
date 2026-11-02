@@ -5,16 +5,14 @@ import AdminMembers from './AdminMembers'
 import AdminPoints from './AdminPoints'
 import AdminLog from './AdminLog'
 import AdminTabs, { ADMIN_HOME } from './AdminTabs'
+import '../../components/admin/admin.css'
 
+/** Admin (DESIGN 10 "Admin"): title, 5 section tabs (all visible, aria-current), then the section.
+ *  The fun-points line lives in the shared footer, so it is not repeated here. */
 export default function AdminHome() {
   return (
-    <div>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h1 className="font-display text-4xl tracking-wider leading-none">
-          <span className="text-gold">ADMIN</span> CORNER
-        </h1>
-        <span className="text-xs text-muted">fun points — no cash value</span>
-      </div>
+    <div className="pg-admin">
+      <h1 className="t-title">Admin</h1>
       <AdminTabs />
       <Routes>
         <Route index element={<Navigate to={ADMIN_HOME} replace />} />

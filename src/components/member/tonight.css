@@ -1,0 +1,115 @@
+/* Tonight extras (FightCard + components/member). Only tokens from src/index.css; no new colours,
+   radius or shadows. Everything sits in the components layer so utilities still win. */
+@layer components {
+  /* sheets on Tonight */
+  .pg-tonight .paper.sheet { margin-top: 24px; }
+  .pg-tonight .pagehead + .sheet.paper { margin-top: 16px; }
+  .pg-tonight .ask .ev-top + .ask-h { margin-top: 14px; }
+  .ask-sub { margin-top: 6px; }
+  .decline-step { margin-top: 16px; padding-top: 12px; border-top: var(--rule-heavy) solid var(--color-toner); }
+  .decline-step .t-help { margin-top: 6px; }
+  .sheet .field-error { margin-top: 10px; }
+
+  /* main event */
+  .ht-wrap { position: relative; }
+  .duel-side { min-width: 0; }
+  /* start lines under the names: the divider takes the tale-of-tape's top margin instead of adding a row
+     (DESIGN 10: the open main event stays within 1,000px at 390px) */
+  .duel-divider { margin-block: 6px 0; }
+  .duel-divider > .md-ring { width: 14px; height: 14px; }
+  .duel-divider + .tot { margin-top: 2px; }
+  .main-sheet .duel .fname { min-height: 44px; }
+  /* the poster's vertical rhythm, a notch tighter than the mockup so the open main event with its pick
+     ticket fits the 1,000px budget at 390px (the mockup itself measured 1,021px) */
+  .main-sheet .duel { margin-top: 10px; }
+  .main-sheet .tot td, .main-sheet .tot th { padding-block: 4px; }
+  .main-sheet .consent { margin-top: 8px; }
+  .main-sheet .blk { margin-top: 12px; }
+  .main-sheet .ticket { margin-top: 12px; }
+  .main-sheet .ticket .btn { margin-top: 10px; }
+  .main-sheet .ticket .t-help { margin-top: 8px; }
+  .main-sheet .poster-foot { margin-top: 12px; }
+  .duel .fname { overflow-wrap: anywhere; }
+  .rounds { margin-top: 6px; }
+  .wait-help { margin-top: 10px; }
+  .consent svg { color: currentColor; }
+  .result-stamp { width: max-content; max-width: 140px; white-space: normal; text-align: center; justify-content: center; text-wrap: balance; }
+  .main-sheet .poster-foot { align-items: flex-start; }
+  .reacts-wrap { min-width: 0; }
+
+  /* pool + crowd split: one corner only (no seam), and the ink variant for undercard rows */
+  .pool-bar .b--solo { border-left: 0; }
+  .blk--ink { border-top: 1px solid var(--color-ink-rule); }
+  .blk--ink .pool-bar { box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+  .blk--ink .pool-empty { border-color: var(--color-bone-2); color: var(--color-bone-2); }
+  .blk--ink .c-2 { color: var(--color-bone-2); }
+
+  /* pick ticket */
+  .ticket .field-error { color: var(--color-bone); margin-top: 10px; }
+  .ticket .field-error svg { color: var(--color-red); }
+  .ticket .link { color: var(--color-bone); }
+  /* inline in the help line; the vertical padding widens the tap area without moving the text */
+  .pick-help .pick-type-link { display: inline; padding-block: 12px; margin-block: -12px; font-weight: 700; font-size: inherit; line-height: inherit; white-space: nowrap; }
+  .pick-typed { display: grid; gap: 6px; margin-top: 10px; }
+  .pick-typed .field-label { color: var(--color-bone); white-space: normal; }
+  .pick-typed .field-label .c-2 { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .ticket .picked + .two { margin-top: 14px; }
+  .two--one { grid-template-columns: 1fr; }
+  .ticket > .t-sub + .t-help { margin-top: 6px; }
+  .side { position: relative; }
+
+  /* points picks after settle: a 4th column for what came back */
+  .picks-list--settled li { grid-template-columns: 1fr auto auto 5.5rem; }
+  .picks-list .res { text-align: end; white-space: nowrap; }
+  .picks-list .who { min-width: 0; }
+
+  /* settled "who picked what" + undercard "full result" disclosures */
+  details.more { margin-top: 16px; }
+  details.more > summary, details.bout-more > summary { list-style: none; width: 100%; cursor: pointer; }
+  details.more > summary::-webkit-details-marker, details.bout-more > summary::-webkit-details-marker { display: none; }
+  details.more[open] > summary { margin-bottom: 4px; }
+  details.bout-more { margin-top: 12px; }
+  details.bout-more[open] > summary { margin-bottom: 14px; }
+  details.bout-more > .paper { margin-top: 0; }
+
+  /* undercard rows: corner names are links, so they get a full 44px target even on one line at 320 */
+  .bout-vs .nm { display: flex; align-items: center; min-height: 44px; }
+  .bout-vs .nm--blue { justify-content: flex-end; }
+  .bout-vs .nm > bdi { min-width: 0; }
+
+  /* undercard rows */
+  .bout-h { margin-top: 10px; }
+  .bout-h .vs-sm { font-size: 1rem; }
+  .bout-sub { margin-top: 6px; }
+  .bout-note svg { font-size: 1.125rem; vertical-align: -.2em; }
+  .bout-pick-btn { margin-top: 12px; }
+  .bout-pick > .blk { margin-top: 14px; }
+  .bout-pick > .ticket { margin-inline: 0; }
+  .bout-result { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 12px; }
+  .score-row--sm { margin: 0; font: 900 2.25rem/.85 var(--font-display); font-variant-numeric: tabular-nums; }
+  .bout .score-row--sm .dash { color: var(--color-bone-2); }
+  .bout .score-row--sm .c-blue { color: var(--color-blue); }   /* 36px display: large text, 4.12:1 on ink */
+
+  /* reactions on ink (undercard rows): bone label, bone-2 outline (ink-rule is too faint for a control) */
+  .reacts--ink .react { color: var(--color-bone); box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+  .reacts--ink .react[aria-pressed="true"] { box-shadow: inset 0 0 0 var(--rule) var(--color-bone); background: var(--color-ink-2); }
+  .reacts-wrap .field-error { margin-top: 8px; }
+
+  /* reaction picker: popover in the top layer, a bone strip like the toast */
+  .react-pop {
+    position: fixed; inset: auto 0 calc(84px + env(safe-area-inset-bottom)) 0; margin: 0 auto;
+    width: min(calc(100% - 32px), 448px); padding: 12px; border: 0;
+    background: var(--color-bone); color: var(--color-toner);
+  }
+  .react-pop::backdrop { background: color-mix(in srgb, var(--color-ink) 50%, transparent); }
+  .react-pop .label { display: block; margin-bottom: 10px; }
+  .react-pop-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .react-pop-grid .react { justify-content: center; padding: 0 4px; gap: 4px; color: var(--color-toner); box-shadow: inset 0 0 0 var(--rule) var(--color-toner-rule); }
+  .react-pop-grid .react[aria-pressed="true"] { box-shadow: inset 0 0 0 var(--rule) var(--color-toner); background: color-mix(in srgb, var(--color-toner) 10%, transparent); }
+  .react-pop :focus-visible { outline-color: var(--color-toner); }
+
+  /* share */
+  .share-btn[aria-busy="true"]::after { content: none; }
+  .share-err { flex-basis: 100%; }
+  .poster-foot:has(.share-err) { flex-wrap: wrap; }
+}

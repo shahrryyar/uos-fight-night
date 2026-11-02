@@ -1,0 +1,26 @@
+/**
+ * Gold UoS title-belt plate. CHAMPION ONLY (title holder, title bout, Hall of Fame).
+ * Gold means champion and nothing else: never use it for branding, accents or decoration.
+ * Inline SVG (no request); decorative unless `label` is given.
+ */
+export interface ChampionBeltProps {
+  /** square size in CSS px (default 24) */
+  size?: number
+  /** accessible name, e.g. "Champion". Omit when a visible "Champion" text sits next to it */
+  label?: string
+  className?: string
+}
+
+export default function ChampionBelt({ size = 24, label, className = '' }: ChampionBeltProps) {
+  return (
+    <svg viewBox="0 0 512 512" width={size} height={size} className={`belt ${className}`.trim()}
+      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })} focusable="false">
+      <path fill="#d7192a" d="M0 194H256V318H0Z" />
+      <path fill="#2a6fdb" d="M256 194H512V318H256Z" />
+      <path fill="none" stroke="#0b0b0d" strokeWidth="5" strokeDasharray="14 9" d="M0 209H512M0 303H512" />
+      <path fill="#e3b341" stroke="#0b0b0d" strokeWidth="14" strokeLinejoin="miter" d="M146 100H412V366L366 412H100V146Z" />
+      <path fill="#0b0b0d" fillRule="evenodd" d="M118 256a138 138 0 1 0 276 0a138 138 0 1 0 -276 0ZM132 256a124 124 0 1 0 248 0a124 124 0 1 0 -248 0Z" />
+      <path fill="#0b0b0d" fillRule="evenodd" d="M153.66 219.92L166.78 206.8L174.98 206.8L174.98 283.88L194.66 283.88L194.66 219.92L207.78 206.8L215.98 206.8L215.98 292.08L202.86 305.2L153.66 305.2ZM309.14 206.8L358.34 206.8L358.34 215L345.22 228.12L317.34 228.12L317.34 245.34L345.22 245.34L358.34 258.46L358.34 292.08L345.22 305.2L296.02 305.2L296.02 297L309.14 283.88L337.02 283.88L337.02 266.66L309.14 266.66L296.02 253.54L296.02 219.92ZM225 256a31 31 0 1 0 62 0a31 31 0 1 0 -62 0ZM246.32 256a9.68 9.68 0 1 0 19.36 0a9.68 9.68 0 1 0 -19.36 0Z" />
+    </svg>
+  )
+}

@@ -1,47 +1,33 @@
 import { useEffect, useState } from 'react'
-import { countdown } from '../../lib/math'
 
-export function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs)
-    return () => clearInterval(id)
-  }, [intervalMs])
-  return now
-}
+/**
+ * Text-only countdown (DESIGN 9: no flip, no boxes). Seconds show only in the last 10 minutes,
+ * so the clock ticks every second only then; otherwise it refreshes every 15s.
+ */
+const TEN_MIN = 10 * 60_000
+
+export interface Remaining { done: boolean; ms: number; text: string }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-export default function Countdown({ target }: { target: string }) {
-  const now = useNow(1000)
-  const c = countdown(target, now)
+/** 3d 04h 12m / 04h 12m / 9m 05s */
+export function remaining(target: string | Date, now: Date = new Date()): Remaining {
+  const ms = new Date(target).getTime() - now.getTime()
+  if (!(ms > 0)) return { done: true, ms: 0, text: '' }
+  const s = Math.floor(ms / 1000)
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const text = d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m` : ms >= TEN_MIN ? `${pad(h)}h ${pad(m)}m` : `${m}m ${pad(sec)}s`
+  return { done: false, ms, text }
+}
 
-  if (c.done) {
-    return (
-      <div className="flex items-center justify-center gap-3 rounded-xl border border-red/60 bg-red/10 py-4" role="status">
-        <span className="ufn-pulse h-3 w-3 rounded-full bg-red" aria-hidden />
-        <span className="font-display text-4xl tracking-wider text-bone">FIGHT TIME</span>
-      </div>
-    )
-  }
-
-  const units = [
-    { k: 'd', v: c.days, label: 'Days' },
-    { k: 'h', v: c.hours, label: 'Hrs' },
-    { k: 'm', v: c.minutes, label: 'Min' },
-    { k: 's', v: c.seconds, label: 'Sec' },
-  ]
-  return (
-    <div className="grid grid-cols-4 gap-2" role="timer" aria-label={`Starts in ${c.label}`}>
-      {units.map(u => (
-        <div key={u.k} className="rounded-xl border border-line bg-surface/80 py-2.5 text-center">
-          <div aria-hidden key={u.k === 's' ? u.v : undefined}
-            className={`font-display text-[2.6rem] leading-none tabular-nums ${u.k === 's' ? 'ufn-tick text-gold' : 'text-bone'}`}>
-            {pad(u.v)}
-          </div>
-          <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted" aria-hidden>{u.label}</div>
-        </div>
-      ))}
-    </div>
-  )
+export function useRemaining(target: string): Remaining {
+  const [now, setNow] = useState(() => new Date())
+  const r = remaining(target, now)
+  const fast = !r.done && r.ms < TEN_MIN + 15_000
+  useEffect(() => {
+    if (r.done) return
+    const id = setInterval(() => setNow(new Date()), fast ? 1000 : 15_000)
+    return () => clearInterval(id)
+  }, [fast, r.done])
+  return r
 }

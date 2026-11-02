@@ -7,10 +7,13 @@ import CreateFight from '../../components/admin/fights/CreateFight'
 import FightAdminCard from '../../components/admin/fights/FightAdminCard'
 import CardManager from '../../components/admin/fights/CardManager'
 import RecentResults from '../../components/admin/fights/RecentResults'
-import { Btn, Empty, ErrorBox, SectionTitle, fmtCardDate, must, useAction } from '../../components/admin/ui'
+import { Button, EmptyState, Loading } from '../../components/ui'
+import { LoadError, SectionHead, fmtCardDate, must, useAction } from '../../components/admin/ui'
 
 const ACTIVE = ['scheduled', 'open', 'locked']
 
+/** Fights section. The decision leads (DESIGN principle 4): the live bout sheets come first,
+ *  then booking, card order and recent results. All queries and RPCs unchanged. */
 export default function AdminFights() {
   const [fighters, setFighters] = useState<Fighter[]>([])
   const [fights, setFights] = useState<AdminFight[]>([])
@@ -18,6 +21,7 @@ export default function AdminFights() {
   const [recent, setRecent] = useState<AdminFight[]>([])
   const [pools, setPools] = useState<Record<string, FightPool>>({})
   const [hasAccount, setHasAccount] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
   const load = useAction()
   const loadRun = load.run
 
@@ -35,7 +39,7 @@ export default function AdminFights() {
     setRecent(must(done) as AdminFight[])
     setHasAccount(new Set((must(pr) as { fighter_id: string; active: boolean }[]).filter(p => p.active).map(p => p.fighter_id)))
 
-    // Whole cards (any non-cancelled status) for dates that still have live bouts — for ordering / main event.
+    // Whole cards (any non-cancelled status) for dates that still have live bouts: for ordering / main event.
     const dates = [...new Set(act.map(f => f.card_date))]
     const [cards, pl] = await Promise.all([
       dates.length
@@ -47,6 +51,7 @@ export default function AdminFights() {
     ])
     setCardFights(must(cards) as AdminFight[])
     setPools(Object.fromEntries((must(pl) as FightPool[]).map(x => [x.fight_id, x])))
+    setLoaded(true)
   }), [loadRun])
 
   useEffect(() => { void refresh() }, [refresh])
@@ -62,28 +67,32 @@ export default function AdminFights() {
   }, [fights])
 
   return (
-    <div className="space-y-6">
-      <CreateFight fighters={fighters} cardFights={cardFights} onCreated={refresh} />
-      <div>
-        <SectionTitle right={<Btn onClick={() => void refresh()} busy={load.busy} className="text-sm">Refresh</Btn>}>
-          Live card
-        </SectionTitle>
-        <ErrorBox error={load.error} />
-        {!load.busy && fights.length === 0 && <Empty>No scheduled, open or locked fights. Book one above.</Empty>}
-        <div className="space-y-6">
-          {groups.map(([d, list]) => (
-            <section key={d} className="space-y-3">
-              <h3 className="font-display text-xl tracking-[0.2em] text-muted uppercase">{fmtCardDate(d)}</h3>
-              {list.map(f => (
-                <FightAdminCard key={f.id} fight={f} red={byId[f.red_fighter_id]} blue={byId[f.blue_fighter_id]}
-                  pool={pools[f.id]} hasAccount={hasAccount} onChanged={refresh} />
-              ))}
-            </section>
-          ))}
-        </div>
-      </div>
+    <>
+      <section className="adm-section" aria-labelledby="live-h">
+        <SectionHead id="live-h" title="Live card"
+          right={loaded && <Button variant="ghost" size="sm" onClick={() => void refresh()} busy={load.busy} busyLabel="Refreshing">Refresh</Button>} />
+        <LoadError error={load.error} what="the live card" onRetry={() => void refresh()} busy={load.busy} />
+        {!loaded && !load.error && <Loading label="Loading the live card…" />}
+        {loaded && fights.length === 0 && (
+          <EmptyState title="No live bouts" body="Nothing is booked, open or locked. Book the next bout below." />
+        )}
+        {groups.map(([d, list]) => (
+          <div key={d} className="card-date">
+            <p className="label c-2"><span className="nowrap">{fmtCardDate(d)}</span> · <span className="nowrap">{list.length} live bout{list.length === 1 ? '' : 's'}</span></p>
+            {list.map(f => (
+              <FightAdminCard key={f.id} fight={f} red={byId[f.red_fighter_id]} blue={byId[f.blue_fighter_id]}
+                pool={pools[f.id]} hasAccount={hasAccount} onChanged={refresh} />
+            ))}
+          </div>
+        ))}
+      </section>
+      {loaded && (
+        <section className="adm-section" aria-label="Book a bout">
+          <CreateFight fighters={fighters} cardFights={cardFights} onCreated={refresh} />
+        </section>
+      )}
       <CardManager cardFights={cardFights} byId={byId} onChanged={refresh} />
       <RecentResults fights={recent} byId={byId} onChanged={refresh} />
-    </div>
+    </>
   )
 }

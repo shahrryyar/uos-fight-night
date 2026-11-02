@@ -5,6 +5,8 @@ import AppLayout from './components/AppLayout'
 import Splash from './components/landing/Splash'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import NotFound from './components/landing/NotFound'
+import { EmptyState } from './components/ui'
 
 // Member + admin pages are split into their own chunks so the public landing/login stay small.
 const FightCard = lazy(() => import('./pages/FightCard'))
@@ -21,7 +23,7 @@ function RequireMember({ children }: { children: ReactNode }) {
   if (loading) return <Splash />
   if (!session) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
   if (!profile) return <Splash />
-  if (!profile.active) return <div className="min-h-dvh grid place-items-center p-6 text-center text-muted">Your account is deactivated. Ask an admin.</div>
+  if (!profile.active) return <main className="wrap"><EmptyState as="h1" size="title" title="Account switched off" body="Ask an admin to turn it back on." /></main>
   return <>{children}</>
 }
 
@@ -49,7 +51,7 @@ export default function App() {
           <Route path="/app/me" element={<Me />} />
           <Route path="/admin/*" element={<RequireAdmin><AdminHome /></RequireAdmin>} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   )

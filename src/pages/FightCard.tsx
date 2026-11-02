@@ -1,16 +1,29 @@
+/**
+ * Tonight (/app). DESIGN 10 + 11.3, mockups fightcard.html / states-a / states-b.
+ * Decision first: the live main event leads (taped poster when you can pick), then the undercard rows
+ * (open, locked, booked), then finished bouts collapsed at the bottom. One poster per screen at most.
+ * Data: the same fights query, realtime channel and 10s poll as before.
+ */
+import { useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import {
-  fmtCardDate, fmtPts, groupByCard, must, useAsync, useBalance, useFightersMap, useNow, usePoll, useRealtime,
-  type FightRow,
-} from '../lib/hooks'
+import { useAuth } from '../lib/auth'
+import { useAppBalance } from '../lib/balance'
+import { countdown } from '../lib/math'
+import { groupByCard, must, useAsync, useFightersMap, useNow, usePoll, useRealtime, type FightRow } from '../lib/hooks'
 import FightPanel from '../components/member/FightPanel'
-import { ErrorBox, Loading, NO_CASH } from '../components/member/ui'
+import { fmtCardDay, tonightSort } from '../components/member/format'
+import { Alert, ButtonLink, EmptyState, Loading, Ranking } from '../components/ui'
+import '../components/member/tonight.css'
 
 const RECENT_WINDOW_MS = 12 * 3600_000
 
+const isLive = (f: FightRow) => f.status === 'scheduled' || f.status === 'open' || f.status === 'locked'
+const bouts = (n: number) => `${n} bout${n === 1 ? '' : 's'}`
+
 export default function FightCard() {
   const now = useNow(1000)
-  const { balance, reload: reloadBalance } = useBalance()
+  const { profile } = useAuth()
+  const { balance, reload: reloadBalance } = useAppBalance()
 
   const fights = useAsync(async () => {
     const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString()
@@ -25,70 +38,117 @@ export default function FightCard() {
 
   const ids = (fights.data ?? []).flatMap(c => c.fights.flatMap(f => [f.red_fighter_id, f.blue_fighter_id]))
   const fighters = useFightersMap(ids)
+  // records and Elo change when a bout is settled or a result corrected; the fighters map is keyed by
+  // id only, so refetch it whenever any bout's result signature moves (realtime or the 10s poll)
+  const resultSig = (fights.data ?? []).flatMap(c => c.fights)
+    .map(f => `${f.id}:${f.status}:${f.settled_at ?? ''}:${f.winner_side ?? ''}:${f.elo_delta ?? ''}`).join('|')
+  const seenSig = useRef<string | null>(null)
+  const reloadFighters = fighters.reload
+  useEffect(() => {
+    if (!fights.data) return
+    if (seenSig.current !== null && seenSig.current !== resultSig) void reloadFighters()
+    seenSig.current = resultSig
+  }, [resultSig, fights.data, reloadFighters])
 
-  return (
-    <div>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-4xl tracking-wider leading-none">Fight Card</h1>
-          <p className="text-xs text-muted mt-1">{NO_CASH}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] uppercase tracking-widest text-muted">Your points</p>
-          <p className="font-display text-3xl tracking-wide leading-none text-gold tabular-nums">{balance == null ? '…' : fmtPts(balance)}</p>
-        </div>
-      </div>
-
-      {fights.loading && !fights.data ? <Loading label="Loading fight card…" />
-        : fights.error && !fights.data ? <ErrorBox error={fights.error} onRetry={() => void fights.reload()} />
-        : !fights.data?.length ? <NoFight />
-        : (
-          <div className="space-y-10">
-            {fights.data.map(card => {
-              const hasMain = card.fights.some(f => f.is_main_event)
-              const undercard = card.fights.filter(f => !f.is_main_event)
-              return (
-                <section key={card.cardDate} aria-label={`Card ${fmtCardDate(card.cardDate)}`}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-gold/40" aria-hidden />
-                    <h2 className="font-display text-2xl leading-none tracking-[0.2em] text-gold">{fmtCardDate(card.cardDate)}</h2>
-                    <div className="h-px flex-1 bg-gold/40" aria-hidden />
-                  </div>
-                  <p className="-mt-2 mb-3 text-center text-[11px] uppercase tracking-widest text-muted">
-                    {card.fights.length} bout{card.fights.length === 1 ? '' : 's'}
-                  </p>
-                  {hasMain && undercard.length > 0 && (
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.3em] text-muted">Undercard</p>
-                  )}
-                  <div className="space-y-5">
-                    {card.fights.map(f => (
-                      <div key={f.id} className={f.is_main_event ? 'pt-3' : ''}>
-                        <FightPanel fight={f} now={now} size={hasMain && !f.is_main_event ? 'undercard' : 'main'}
-                          red={fighters.data?.get(f.red_fighter_id)} blue={fighters.data?.get(f.blue_fighter_id)}
-                          balance={balance} onPointsChanged={() => void reloadBalance()}
-                          onFightChanged={() => void fights.reload()} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
-          </div>
-        )}
+  const head = (date?: string, n?: number) => (
+    <div className="pagehead">
+      <h1 className="t-title">Tonight</h1>
+      {date && <p className="data c-2"><span className="nowrap">{fmtCardDay(date)}</span> · <span className="nowrap">{bouts(n ?? 0)}</span></p>}
     </div>
   )
-}
 
-function NoFight() {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-line bg-surface px-6 py-16 text-center">
-      <div className="absolute inset-0 bg-linear-to-br from-red-dark/40 via-transparent to-blue-dark/40" aria-hidden />
-      <div className="relative">
-        <p className="text-[11px] uppercase tracking-[0.4em] text-gold">UoS Fight Night</p>
-        <p className="mt-4 font-display text-6xl leading-[0.9] tracking-wide">No fight<br />booked<br /><span className="text-red">tonight</span></p>
-        <div className="mx-auto mt-6 h-px w-24 bg-gold/60" />
-        <p className="mt-4 text-sm text-muted">Rest up. Check the rankings and come back when the next card drops.</p>
+  if (fights.loading && !fights.data) {
+    return <div className="pg-tonight">{head()}<Loading label="Loading tonight’s card…" /></div>
+  }
+  if (fights.error && !fights.data) {
+    return (
+      <div className="pg-tonight">
+        {head()}
+        <Alert title="Couldn’t load tonight’s card." onRetry={() => void fights.reload()}>
+          Check your connection and try again. Picks you already made are saved.
+        </Alert>
       </div>
+    )
+  }
+  const cards = fights.data ?? []
+  if (!cards.length) {
+    return (
+      <div className="pg-tonight">
+        <EmptyState as="h1" size="title" art="mat" title="No fight booked tonight"
+          body="Rest up. Check the ranks, and come back when admins post the next card."
+          action={<ButtonLink to="/app/leaderboard" variant="bone" size="sm" icon={Ranking}>See the ranks</ButtonLink>} />
+      </div>
+    )
+  }
+
+  const sort = tonightSort(now)
+  const fid = profile?.fighter_id ?? null
+  const inBout = (f: FightRow) => !!fid && (f.red_fighter_id === fid || f.blue_fighter_id === fid)
+  const mustAnswer = (f: FightRow) => f.status === 'scheduled' && inBout(f)
+    && !(f.red_fighter_id === fid ? f.red_accepted_at : f.blue_accepted_at)
+  // tape follows actionability: ONE poster per screen, for the open main event of the first card or,
+  // failing that, the first booking you must answer
+  const posterId = (() => {
+    for (const card of cards) {
+      const main = card.fights.find(f => f.is_main_event && isLive(f))
+      if (main && main.status === 'open' && !countdown(main.lock_at, now).done && !inBout(main)) return main.id
+      const ask = card.fights.find(mustAnswer)
+      if (ask) return ask.id
+    }
+    return null
+  })()
+
+  return (
+    <div className="pg-tonight">
+      {head(cards[0].cardDate, cards[0].fights.length)}
+      {cards.map((card, ci) => {
+        const list = [...card.fights].sort(sort)
+        const live = list.filter(isLive)
+        const done = list.filter(f => !isLive(f))
+        const featured = live.find(f => f.is_main_event)
+          ?? (live.length === 0 ? done.find(f => f.is_main_event && f.status === 'settled') : undefined)
+        const rows = live.filter(f => f !== featured)
+        const results = done.filter(f => f !== featured)
+          .sort((a, b) => Number(a.status === 'cancelled') - Number(b.status === 'cancelled') || (a.bout_order ?? 0) - (b.bout_order ?? 0))
+
+        const panel = (f: FightRow, size: 'main' | 'row') => (
+          <FightPanel key={f.id} fight={f} now={now} size={size} taped={f.id === posterId}
+            red={fighters.data?.get(f.red_fighter_id)} blue={fighters.data?.get(f.blue_fighter_id)}
+            balance={balance} onPointsChanged={() => void reloadBalance()}
+            onFightChanged={() => void fights.reload()} />
+        )
+
+        return (
+          <section key={card.cardDate} className={ci > 0 ? 'section tonight-card' : 'tonight-card'}
+            aria-label={ci > 0 ? `Card ${fmtCardDay(card.cardDate)}` : undefined}>
+            {ci > 0 && (
+              <div className="section-head">
+                <h2 className="t-head">Next card · <span className="nowrap">{fmtCardDay(card.cardDate)}</span></h2>
+                <span className="data c-2">{bouts(card.fights.length)}</span>
+              </div>
+            )}
+            {featured && panel(featured, 'main')}
+            {rows.length > 0 && (
+              <section className="section" aria-labelledby={`uc-${card.cardDate}`}>
+                <div className="section-head">
+                  <h2 id={`uc-${card.cardDate}`} className="t-head">{featured ? 'Undercard' : 'Bouts'}</h2>
+                  <span className="data c-2">{bouts(rows.length)}</span>
+                </div>
+                <div className="bouts">{rows.map(f => panel(f, 'row'))}</div>
+              </section>
+            )}
+            {results.length > 0 && (
+              <section className="section" aria-labelledby={`done-${card.cardDate}`}>
+                <div className="section-head">
+                  <h2 id={`done-${card.cardDate}`} className="t-head">Finished</h2>
+                  <span className="data c-2">{bouts(results.length)}</span>
+                </div>
+                <div className="bouts">{results.map(f => panel(f, 'row'))}</div>
+              </section>
+            )}
+          </section>
+        )
+      })}
     </div>
   )
 }

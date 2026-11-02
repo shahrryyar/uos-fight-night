@@ -1,8 +1,12 @@
 /**
- * Share poster: 1080x1350 canvas "VS" fight poster.
- * Red corner top-left, blue corner bottom-right, gold VS on the diagonal.
- * Fun points only — no cash value. No external deps.
+ * Share poster: 1080x1350 xerox fight flyer (DESIGN.md "Underground fight flyer").
+ * A bone paper sheet taped to the toner wall: lockup, red date snipe, halftone corner photos with
+ * corner bands, a red VS rubber stamp at the seam, names in corner inks, kg in Courier, the mat
+ * divider (red line | ring | blue line), then the call to action. Fun points only, no money words.
+ * No external deps. Same-origin textures from /textures and /brand. Photos are halftoned on a
+ * scratch canvas; if a photo blocks CORS it is skipped (initials), so the poster canvas never taints.
  */
+import { halftoneCanvas, TONER_RGB } from './halftone'
 
 export interface PosterOpts {
   title?: string | null
@@ -18,49 +22,56 @@ export interface PosterOpts {
   blueKg?: number | null
 }
 
-/** 72.5 → "72.5 KG", 70 → "70 KG"; null/invalid → null. */
+/** 72.5 -> "72.5 kg", 70 -> "70 kg"; null/invalid -> null. */
 function kgLabel(v: number | null | undefined): string | null {
   if (v === null || v === undefined) return null
   const n = Number(v)
   if (!Number.isFinite(n) || n <= 0) return null
-  return `${Number.isInteger(n) ? n : n.toFixed(1)} KG`
+  return `${Number.isInteger(n) ? n : n.toFixed(1)} kg`
 }
 
 const W = 1080
 const H = 1350
 const C = {
   ink: '#0b0b0d',
-  red: '#d7192a',
-  redDark: '#8f0f1b',
-  blue: '#2a6fdb',
-  blueDark: '#173f80',
-  gold: '#e3b341',
+  toner: '#1a1917',
+  tonerMute: '#5c5850',
   bone: '#f4f1ea',
-  muted: '#9a968e',
+  bone2: '#b9b4a9',
+  red: '#d7192a',
+  blue: '#2a6fdb',
+  blueInk: '#1f5bc4',
 }
-const DISPLAY = '"Bebas Neue", Impact, "Arial Narrow", sans-serif'
-const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif'
+const DISPLAY = '"Big Shoulders", "Arial Narrow", sans-serif'
+const BODY = 'Archivo, system-ui, sans-serif'
+const DATA = '"Courier Prime", "Courier New", monospace'
 
-/** Diagonal through the poster center, rising to the right. */
-const diagY = (x: number) => 675 + (540 - x) * 0.3
+// sheet geometry (the paper layer tilts, content does not)
+const SX = 44, SY = 70, SW = 992, SB = 1300
+const X0 = 96, X1 = 984, CW = X1 - X0
+const GAP = 28, COL = (CW - GAP) / 2
+const PHOTO_Y = 360, BAND_H = 46, PHOTO_H = Math.round(COL * 3 / 4)
 
 async function ensureFonts() {
   if (typeof document === 'undefined' || !document.fonts) return
   try {
     await Promise.race([
       Promise.all([
-        document.fonts.load('120px "Bebas Neue"'),
-        document.fonts.load('600 30px Inter'),
+        document.fonts.load(`900 120px ${DISPLAY}`),
+        document.fonts.load(`800 48px ${DISPLAY}`),
+        document.fonts.load(`700 30px ${BODY}`),
+        document.fonts.load(`400 26px ${BODY}`),
+        document.fonts.load(`700 34px ${DATA}`),
       ]),
       new Promise(r => setTimeout(r, 3000)),
     ])
   } catch { /* fall back to system fonts */ }
 }
 
-function loadImage(src: string, timeoutMs = 8000): Promise<HTMLImageElement | null> {
+function loadImage(src: string, cors: boolean, timeoutMs = 8000): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    if (cors) img.crossOrigin = 'anonymous'
     img.decoding = 'async'
     const t = setTimeout(() => resolve(null), timeoutMs)
     img.onload = () => { clearTimeout(t); resolve(img) }
@@ -70,297 +81,295 @@ function loadImage(src: string, timeoutMs = 8000): Promise<HTMLImageElement | nu
 }
 
 function initials(name: string): string {
-  const parts = name.replace(/["'“”]/g, '').trim().split(/\s+/).filter(Boolean)
+  const parts = name.replace(/["'“”‘’]/g, '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0][0].toUpperCase()
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 /** Largest font size (<= max) that fits `text` in `maxW`, never below `min`. */
-function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, max: number, min: number, maxW: number): number {
+function fitFont(ctx: CanvasRenderingContext2D, text: string, font: (s: number) => string, max: number, min: number, maxW: number): number {
   let size = max
   while (size > min) {
-    ctx.font = `${size}px ${family}`
+    ctx.font = font(size)
     if (ctx.measureText(text).width <= maxW) break
-    size -= 4
+    size -= 2
   }
   return size
 }
 
-/** Splits a long nickname into up to 2 balanced lines. `cap` limits the largest font size. */
-function splitName(ctx: CanvasRenderingContext2D, name: string, maxW: number, cap = 150): { lines: string[]; size: number } {
+const nameFont = (s: number) => `900 ${s}px ${DISPLAY}`
+
+/** Splits a nickname into at most 2 balanced lines at the largest size that fits `maxW`. */
+function splitName(ctx: CanvasRenderingContext2D, name: string, maxW: number, cap: number): { lines: string[]; size: number } {
   const text = name.toUpperCase().trim() || '?'
-  const single = fitFont(ctx, text, DISPLAY, Math.min(150, cap), 40, maxW)
+  const single = fitFont(ctx, text, nameFont, cap, 40, maxW)
   const words = text.split(/\s+/)
-  if (single >= Math.min(96, cap) || words.length < 2) return { lines: [text], size: single }
-  let best: { lines: string[]; size: number } = { lines: [text], size: single }
+  let best = { lines: [text], size: single }
   for (let i = 1; i < words.length; i++) {
     const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ')
-    const sa = fitFont(ctx, a, DISPLAY, Math.min(120, cap), 40, maxW)
-    const sb = fitFont(ctx, b, DISPLAY, Math.min(120, cap), 40, maxW)
-    const s = Math.min(sa, sb)
-    if (s > best.size) best = { lines: [a, b], size: s }
+    const s = Math.min(fitFont(ctx, a, nameFont, cap, 40, maxW), fitFont(ctx, b, nameFont, cap, 40, maxW))
+    if (s > best.size * 1.12) best = { lines: [a, b], size: s }
   }
   return best
 }
 
 function formatWhen(when: string): { day: string; time: string } {
   const d = new Date(when)
-  if (Number.isNaN(d.getTime())) return { day: when.toUpperCase(), time: '' }
-  const day = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Baghdad', weekday: 'short', day: 'numeric', month: 'short',
-  }).format(d).replace(',', '')
-  const time = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Baghdad', hour: 'numeric', minute: '2-digit', hour12: true,
-  }).format(d)
-  return { day: day.toUpperCase(), time: time.toUpperCase() }
+  if (Number.isNaN(d.getTime())) return { day: when, time: '' }
+  const day = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(',', '')
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+  return { day, time }
 }
 
-function drawPanels(ctx: CanvasRenderingContext2D) {
-  const gap = 16
-  // Red corner (top-left)
+/** deterministic PRNG so every share of the same fight tears the same way */
+function prng(seed: number) {
+  return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+}
+
+function drawWall(ctx: CanvasRenderingContext2D, toner: HTMLImageElement | null) {
+  ctx.fillStyle = C.ink
+  ctx.fillRect(0, 0, W, H)
+  if (toner) {
+    const p = ctx.createPattern(toner, 'repeat')
+    if (p) { p.setTransform(new DOMMatrix().scale(1.4)); ctx.fillStyle = p; ctx.fillRect(0, 0, W, H) }
+  }
+}
+
+function drawSheet(ctx: CanvasRenderingContext2D, grain: HTMLImageElement | null) {
+  const rnd = prng(1337)
   ctx.save()
+  ctx.translate(W / 2, (SY + SB) / 2)
+  ctx.rotate((-0.7 * Math.PI) / 180)
+  ctx.translate(-W / 2, -(SY + SB) / 2)
   ctx.beginPath()
-  ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, diagY(W) - gap); ctx.lineTo(0, diagY(0) - gap)
+  ctx.moveTo(SX, SY)
+  ctx.lineTo(SX + SW, SY)
+  ctx.lineTo(SX + SW, SB - 10)
+  // torn bottom edge, right to left
+  for (let x = SX + SW; x > SX; x -= 5 + rnd() * 9) ctx.lineTo(x, SB - 10 + rnd() * 16 + (rnd() > 0.92 ? 8 : 0))
+  ctx.lineTo(SX, SB)
   ctx.closePath()
-  let g = ctx.createLinearGradient(0, 0, W, diagY(0))
-  g.addColorStop(0, C.redDark); g.addColorStop(0.55, C.red); g.addColorStop(1, '#a4121f')
-  ctx.fillStyle = g
-  ctx.fill()
   ctx.clip()
-  drawStripes(ctx, 'rgba(0,0,0,0.10)')
-  ctx.restore()
-
-  // Blue corner (bottom-right)
-  ctx.save()
-  ctx.beginPath()
-  ctx.moveTo(0, diagY(0) + gap); ctx.lineTo(W, diagY(W) + gap); ctx.lineTo(W, H); ctx.lineTo(0, H)
-  ctx.closePath()
-  g = ctx.createLinearGradient(W, H, 0, diagY(W))
-  g.addColorStop(0, C.blueDark); g.addColorStop(0.5, C.blue); g.addColorStop(1, '#1f55ad')
-  ctx.fillStyle = g
-  ctx.fill()
-  ctx.clip()
-  drawStripes(ctx, 'rgba(0,0,0,0.10)')
-  ctx.restore()
-
-  // Gold hairline along the diagonal
-  ctx.save()
-  ctx.strokeStyle = C.gold
-  ctx.lineWidth = 4
-  ctx.globalAlpha = 0.9
-  ctx.beginPath(); ctx.moveTo(0, diagY(0)); ctx.lineTo(W, diagY(W)); ctx.stroke()
-  ctx.restore()
-}
-
-function drawStripes(ctx: CanvasRenderingContext2D, color: string) {
-  ctx.strokeStyle = color
-  ctx.lineWidth = 10
-  for (let x = -H; x < W + H; x += 36) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H * 0.6, H); ctx.stroke()
-  }
-}
-
-function drawVignette(ctx: CanvasRenderingContext2D) {
-  // spotlight from top center
-  let g = ctx.createRadialGradient(W / 2, -120, 40, W / 2, -120, 900)
-  g.addColorStop(0, 'rgba(255,240,210,0.28)'); g.addColorStop(1, 'rgba(255,240,210,0)')
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-  // top fade for header
-  g = ctx.createLinearGradient(0, 0, 0, 260)
-  g.addColorStop(0, 'rgba(11,11,13,0.92)'); g.addColorStop(1, 'rgba(11,11,13,0)')
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 260)
-  // bottom fade for date + footer
-  g = ctx.createLinearGradient(0, 1060, 0, H)
-  g.addColorStop(0, 'rgba(11,11,13,0)'); g.addColorStop(0.45, 'rgba(11,11,13,0.85)'); g.addColorStop(1, 'rgba(11,11,13,1)')
-  ctx.fillStyle = g; ctx.fillRect(0, 1060, W, H - 1060)
-  // edge vignette
-  g = ctx.createRadialGradient(W / 2, H / 2, 420, W / 2, H / 2, 980)
-  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)')
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-}
-
-function drawPortrait(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, name: string, cx: number, cy: number, r: number, base: string) {
-  ctx.save()
-  // drop shadow ring
-  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12
-  ctx.beginPath(); ctx.arc(cx, cy, r + 10, 0, Math.PI * 2)
-  ctx.fillStyle = C.ink; ctx.fill()
-  ctx.restore()
-
-  ctx.save()
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip()
-  if (img && img.naturalWidth > 0) {
-    const s = Math.max((2 * r) / img.naturalWidth, (2 * r) / img.naturalHeight)
-    const w = img.naturalWidth * s, h = img.naturalHeight * s
-    ctx.drawImage(img, cx - w / 2, cy - h / 2.4, w, h) // bias toward the top (faces)
-  } else {
-    const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.4, 10, cx, cy, r)
-    g.addColorStop(0, base); g.addColorStop(1, C.ink)
-    ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r)
-    ctx.fillStyle = C.bone
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.font = `${Math.round(r * 1.05)}px ${DISPLAY}`
-    ctx.fillText(initials(name), cx, cy + r * 0.06)
-  }
-  ctx.restore()
-
-  ctx.save()
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.lineWidth = 10; ctx.strokeStyle = C.gold; ctx.stroke()
-  ctx.restore()
-}
-
-const SUB_SIZE = 50
-const SUB_GAP = 58 // last name baseline → kg baseline
-
-/**
- * Red names grow upward from `y` (last line — or the kg line if given — sits on y, hugging the diagonal from above).
- * Blue names grow downward from `y` (corner label sits on y, just below the diagonal), kg line under the name.
- * `bound` keeps the block clear of the header (up: min label baseline) or the footer (down: max kg baseline).
- */
-function drawName(
-  ctx: CanvasRenderingContext2D, corner: string, name: string, x: number, y: number, maxW: number,
-  align: CanvasTextAlign, grow: 'up' | 'down', sub: string | null = null, bound?: number,
-) {
-  let cap = 150
-  let layout = splitName(ctx, name, maxW, cap)
-  const place = (lines: string[], size: number) => {
-    const lineH = size * 0.92
-    const capH = size * 0.72
-    if (grow === 'up') {
-      const lastBaseline = sub ? y - SUB_GAP : y
-      const firstBaseline = lastBaseline - lineH * (lines.length - 1)
-      return { lineH, firstBaseline, labelY: firstBaseline - capH - 18, subY: y, edge: firstBaseline - capH - 18 }
-    }
-    const firstBaseline = y + 18 + capH
-    const lastBaseline = firstBaseline + lineH * (lines.length - 1)
-    return { lineH, firstBaseline, labelY: y, subY: lastBaseline + SUB_GAP, edge: sub ? lastBaseline + SUB_GAP : lastBaseline }
-  }
-  let pos = place(layout.lines, layout.size)
-  // Only shrink when a kg line was added (keeps the original layout byte-for-byte otherwise).
-  if (sub && bound !== undefined) {
-    const overflow = () => (grow === 'up' ? pos.edge < bound : pos.edge > bound)
-    while (overflow() && cap > 56) {
-      cap -= 6
-      layout = splitName(ctx, name, maxW, cap)
-      pos = place(layout.lines, layout.size)
-    }
-  }
-  const { lines, size } = layout
-  const { lineH, firstBaseline, labelY, subY } = pos
-  ctx.save()
-  ctx.textAlign = align
-  ctx.textBaseline = 'alphabetic'
-  ctx.font = `600 26px ${SANS}`
-  ctx.fillStyle = 'rgba(244,241,234,0.85)'
-  ctx.letterSpacing = '6px'
-  ctx.fillText(corner, x, labelY)
-  ctx.letterSpacing = '1px'
-  ctx.font = `${size}px ${DISPLAY}`
-  ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6
   ctx.fillStyle = C.bone
-  lines.forEach((l, i) => ctx.fillText(l, x, firstBaseline + i * lineH))
-  if (sub) {
-    ctx.font = `${SUB_SIZE}px ${DISPLAY}`
-    ctx.letterSpacing = '4px'
-    ctx.fillStyle = C.gold
-    ctx.fillText(sub, x, subY)
+  ctx.fillRect(0, 0, W, H)
+  if (grain) {
+    const p = ctx.createPattern(grain, 'repeat')
+    if (p) {
+      p.setTransform(new DOMMatrix().scale(1.5))
+      ctx.globalCompositeOperation = 'multiply'
+      ctx.fillStyle = p
+      ctx.fillRect(0, 0, W, H)
+      ctx.globalCompositeOperation = 'source-over'
+    }
   }
   ctx.restore()
 }
 
-function drawVS(ctx: CanvasRenderingContext2D) {
-  const cx = 540, cy = diagY(540)
+function drawTape(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, cx: number, cy: number, w: number, deg: number) {
+  if (!img) return
+  const h = w * (img.naturalHeight / img.naturalWidth)
   ctx.save()
   ctx.translate(cx, cy)
-  ctx.rotate(-Math.atan(0.3))
-  // dark badge behind VS
-  ctx.beginPath(); ctx.arc(0, 0, 118, 0, Math.PI * 2)
-  ctx.fillStyle = C.ink; ctx.fill()
-  ctx.lineWidth = 6; ctx.strokeStyle = C.gold; ctx.stroke()
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.font = `200px ${DISPLAY}`
-  const g = ctx.createLinearGradient(0, -80, 0, 80)
-  g.addColorStop(0, '#fbe3a0'); g.addColorStop(0.5, C.gold); g.addColorStop(1, '#a87a1c')
-  ctx.fillStyle = g
-  ctx.shadowColor = 'rgba(227,179,65,0.45)'; ctx.shadowBlur = 30
-  ctx.fillText('VS', 4, 12)
+  ctx.rotate((deg * Math.PI) / 180)
+  ctx.drawImage(img, -w / 2, -h / 2, w, h)
   ctx.restore()
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, title: string | null | undefined) {
-  ctx.save()
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-  ctx.font = `600 24px ${SANS}`
-  ctx.letterSpacing = '10px'
-  ctx.fillStyle = C.gold
-  ctx.fillText('MEMBERS ONLY · DORM LEAGUE', W / 2 + 5, 74)
-  ctx.letterSpacing = '4px'
-  ctx.font = `96px ${DISPLAY}`
-  ctx.fillStyle = C.bone
-  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 16
-  const a = 'UOS ', b = 'FIGHT ', c = 'NIGHT'
-  const wa = ctx.measureText(a).width, wb = ctx.measureText(b).width, wc = ctx.measureText(c).width
-  let x = W / 2 - (wa + wb + wc) / 2
-  ctx.textAlign = 'left'
-  ctx.fillText(a, x, 160); x += wa
-  ctx.fillStyle = C.bone; ctx.fillText(b, x, 160); x += wb
-  ctx.fillStyle = C.gold; ctx.fillText(c, x, 160)
-  if (title && title.trim()) {
-    ctx.textAlign = 'center'
-    ctx.letterSpacing = '3px'
-    const t = title.trim().toUpperCase()
-    const size = fitFont(ctx, t, DISPLAY, 54, 30, W - 160)
-    ctx.font = `${size}px ${DISPLAY}`
-    ctx.fillStyle = 'rgba(244,241,234,0.9)'
-    ctx.fillText(t, W / 2, 222)
-  }
-  ctx.restore()
-}
-
-function drawFooter(ctx: CanvasRenderingContext2D, when: string, url: string) {
+function drawSnipe(ctx: CanvasRenderingContext2D, when: string) {
   const { day, time } = formatWhen(when)
   ctx.save()
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-  ctx.letterSpacing = '4px'
-  ctx.font = `84px ${DISPLAY}`
-  ctx.fillStyle = C.gold
-  ctx.fillText(time ? `${day} · ${time}` : day, W / 2, 1192)
-  ctx.font = `600 22px ${SANS}`
-  ctx.letterSpacing = '8px'
-  ctx.fillStyle = C.muted
-  if (time) ctx.fillText('BAGHDAD TIME', W / 2 + 4, 1230)
-  // rule
-  ctx.fillStyle = 'rgba(227,179,65,0.5)'
-  ctx.fillRect(W / 2 - 220, 1262, 440, 2)
-  ctx.letterSpacing = '6px'
-  ctx.font = `34px ${DISPLAY}`
+  ctx.font = `800 44px ${DISPLAY}`
+  const dayTxt = day.toUpperCase()
+  const wDay = ctx.measureText(dayTxt).width
+  ctx.font = `700 38px ${DATA}`
+  const sep = time ? ' · ' : ''
+  const wTime = time ? ctx.measureText(sep + time).width : 0
+  const w = wDay + wTime + 56, h = 70
+  ctx.translate(W - 14, 118)
+  ctx.rotate((3 * Math.PI) / 180)
+  ctx.fillStyle = C.red
+  ctx.fillRect(-w, 0, w, h)
   ctx.fillStyle = C.bone
-  ctx.fillText('UOS FIGHT NIGHT · PICK YOUR FIGHTER', W / 2 + 3, 1302)
-  ctx.letterSpacing = '1px'
-  ctx.font = `500 22px ${SANS}`
-  ctx.fillStyle = C.muted
-  ctx.fillText(url.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1334)
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = `800 44px ${DISPLAY}`
+  ctx.fillText(dayTxt, -w + 24, 51)
+  if (time) { ctx.font = `700 38px ${DATA}`; ctx.fillText(sep + time, -w + 24 + wDay, 50) }
   ctx.restore()
 }
 
-function drawGrain(ctx: CanvasRenderingContext2D) {
-  // cheap deterministic speckle — keeps it poster-like without a noise texture
+/** Card title (optional) under the snipe, right-aligned, display 800 in toner. */
+function drawTitle(ctx: CanvasRenderingContext2D, title: string | null | undefined) {
+  const t = title?.trim().toUpperCase()
+  if (!t) return
   ctx.save()
-  let seed = 1337
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-  for (let i = 0; i < 3500; i++) {
-    ctx.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.12)'
-    ctx.fillRect(rnd() * W, rnd() * H, 2, 2)
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = C.toner
+  const size = fitFont(ctx, t, s => `800 ${s}px ${DISPLAY}`, 48, 28, 400)
+  ctx.font = `800 ${size}px ${DISPLAY}`
+  ctx.fillText(fitText(ctx, t, 400), X1, 268)
+  ctx.restore()
+}
+
+/** Halftone a photo into a scratch canvas; null on CORS/decode failure (never taints the poster). */
+function screenPhoto(img: HTMLImageElement | null): HTMLCanvasElement | null {
+  if (!img || !img.naturalWidth) return null
+  try { return halftoneCanvas(img, { px: 640, cell: 15, rgb: TONER_RGB }) } catch { return null }
+}
+
+function drawCorner(ctx: CanvasRenderingContext2D, x: number, side: 'red' | 'blue', photo: HTMLCanvasElement | null, name: string) {
+  // corner band
+  ctx.fillStyle = side === 'red' ? C.red : C.blueInk
+  ctx.fillRect(x, PHOTO_Y, COL, BAND_H)
+  ctx.fillStyle = C.bone
+  ctx.font = `700 24px ${BODY}`
+  ctx.letterSpacing = '1.5px'
+  ctx.textBaseline = 'middle'
+  ctx.textAlign = 'left'
+  ctx.fillText(side === 'red' ? 'RED CORNER' : 'BLUE CORNER', x + 16, PHOTO_Y + BAND_H / 2 + 1)
+  ctx.letterSpacing = '0px'
+  // photo (cover crop of the square screen into 4:3, biased to the top: faces)
+  const y = PHOTO_Y + BAND_H
+  ctx.save()
+  ctx.beginPath(); ctx.rect(x, y, COL, PHOTO_H); ctx.clip()
+  if (photo) {
+    const s = COL / photo.width
+    const ph = photo.height * s
+    ctx.drawImage(photo, x, y - (ph - PHOTO_H) * 0.25, COL, ph)
+  } else {
+    ctx.fillStyle = C.tonerMute
+    ctx.font = `900 ${fitFont(ctx, initials(name), nameFont, 150, 60, COL * 0.5)}px ${DISPLAY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(initials(name), x + COL / 2, y + PHOTO_H / 2 + 10)
   }
   ctx.restore()
+  // frame
+  ctx.strokeStyle = C.toner
+  ctx.lineWidth = 4
+  ctx.strokeRect(x + 2, PHOTO_Y + 2, COL - 4, BAND_H + PHOTO_H - 4)
+}
+
+/** The VS rubber stamp at the seam, distressed with the stamp mask. */
+function drawVS(ctx: CanvasRenderingContext2D, mask: HTMLImageElement | null) {
+  const sw = 168, sh = 118, pad = 24
+  const off = document.createElement('canvas')
+  off.width = sw + pad * 2; off.height = sh + pad * 2
+  const o = off.getContext('2d')
+  if (!o) return
+  o.fillStyle = C.bone
+  o.beginPath(); o.roundRect(pad, pad, sw, sh, 8); o.fill()
+  o.strokeStyle = C.red; o.lineWidth = 9
+  o.beginPath(); o.roundRect(pad + 4.5, pad + 4.5, sw - 9, sh - 9, 6); o.stroke()
+  o.fillStyle = C.red
+  o.font = `900 100px ${DISPLAY}`
+  o.textAlign = 'center'; o.textBaseline = 'middle'
+  o.fillText('VS', pad + sw / 2, pad + sh / 2 + 6)
+  if (mask) {
+    const p = o.createPattern(mask, 'repeat')
+    if (p) { p.setTransform(new DOMMatrix().scale(2.2)); o.globalCompositeOperation = 'destination-in'; o.fillStyle = p; o.fillRect(0, 0, off.width, off.height) }
+  }
+  ctx.save()
+  ctx.translate(W / 2, PHOTO_Y + BAND_H + PHOTO_H * 0.42)
+  ctx.rotate((-8 * Math.PI) / 180)
+  ctx.drawImage(off, -off.width / 2, -off.height / 2)
+  ctx.restore()
+}
+
+/** Names in corner inks + kg in Courier. Returns the y of the lowest baseline drawn. */
+function drawNames(ctx: CanvasRenderingContext2D, o: PosterOpts): number {
+  const top = PHOTO_Y + BAND_H + PHOTO_H + 30
+  const redKg = kgLabel(o.redKg), blueKg = kgLabel(o.blueKg)
+  let cap = 96
+  let r = splitName(ctx, o.redName, COL, cap), b = splitName(ctx, o.blueName, COL, cap)
+  // keep both names at the same size (one poster, one voice) and inside the budget
+  const lay = () => {
+    const size = Math.min(r.size, b.size)
+    const lines = Math.max(r.lines.length, b.lines.length)
+    const capH = size * 0.74, lineH = size * 0.9
+    const last = top + capH + lineH * (lines - 1)
+    return { size, capH, lineH, last, kgY: last + 52 }
+  }
+  let L = lay()
+  while ((redKg || blueKg ? L.kgY : L.last) > 1010 && cap > 50) {
+    cap -= 6
+    r = splitName(ctx, o.redName, COL, cap); b = splitName(ctx, o.blueName, COL, cap)
+    L = lay()
+  }
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.letterSpacing = '-0.5px'
+  const draw = (x: number, lines: string[], color: string, kg: string | null) => {
+    ctx.font = nameFont(L.size)
+    ctx.fillStyle = color
+    lines.forEach((l, i) => ctx.fillText(l, x, top + L.capH + i * L.lineH))
+    if (kg) {
+      ctx.font = `700 34px ${DATA}`
+      ctx.fillStyle = C.toner
+      ctx.fillText(kg, x, L.kgY)
+    }
+  }
+  draw(X0, r.lines, C.red, redKg)
+  draw(X0 + COL + GAP, b.lines, C.blueInk, blueKg)
+  ctx.letterSpacing = '0px'
+  return redKg || blueKg ? L.kgY : L.last
+}
+
+/** MatDivider: red start line | mat ring | blue start line. */
+function drawMatDivider(ctx: CanvasRenderingContext2D, y: number) {
+  const ring = 22, gap = 18, h = 12
+  ctx.fillStyle = C.red
+  ctx.fillRect(X0, y - h / 2, W / 2 - ring - gap - X0, h)
+  ctx.fillStyle = C.blue
+  ctx.fillRect(W / 2 + ring + gap, y - h / 2, X1 - (W / 2 + ring + gap), h)
+  ctx.strokeStyle = C.red
+  ctx.lineWidth = 8
+  ctx.beginPath(); ctx.arc(W / 2, y, ring - 4, 0, Math.PI * 2); ctx.stroke()
+}
+
+function drawFooter(ctx: CanvasRenderingContext2D, url: string) {
+  const host = url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+  // the call: toner block like .yours
+  const by = 1088, bh = 132
+  ctx.fillStyle = C.toner
+  ctx.fillRect(X0, by, CW, bh)
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = C.bone
+  ctx.font = `900 64px ${DISPLAY}`
+  ctx.fillText('WHO WINS?', X0 + 28, by + 70)
+  ctx.font = `700 28px ${BODY}`
+  const pick = 'Make your pick on UoS Fight Night.'
+  ctx.fillText(fitText(ctx, pick, CW - 56), X0 + 28, by + 112)
+  ctx.fillStyle = C.bone2
+  ctx.font = `700 26px ${DATA}`
+  ctx.textAlign = 'right'
+  ctx.fillText(fitText(ctx, host, CW - 380), X1 - 28, by + 68)
+  // small print on paper
+  ctx.textAlign = 'left'
+  ctx.fillStyle = C.tonerMute
+  ctx.font = `400 24px ${BODY}`
+  ctx.fillText('Members only. Fun points only.', X0, by + bh + 46)
+}
+
+function fitText(ctx: CanvasRenderingContext2D, t: string, maxW: number): string {
+  if (ctx.measureText(t).width <= maxW) return t
+  let s = t
+  while (s.length > 1 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1)
+  return s + '…'
 }
 
 export async function renderPoster(opts: PosterOpts): Promise<Blob> {
-  const [redImg, blueImg] = await Promise.all([
-    opts.redPhotoUrl ? loadImage(opts.redPhotoUrl) : Promise.resolve(null),
-    opts.bluePhotoUrl ? loadImage(opts.bluePhotoUrl) : Promise.resolve(null),
+  const [redImg, blueImg, toner, grain, tapeA, tapeB, mask, lockup] = await Promise.all([
+    opts.redPhotoUrl ? loadImage(opts.redPhotoUrl, true) : Promise.resolve(null),
+    opts.bluePhotoUrl ? loadImage(opts.bluePhotoUrl, true) : Promise.resolve(null),
+    loadImage('/textures/toner-dark.png', false),
+    loadImage('/textures/paper-grain.png', false),
+    loadImage('/textures/tape-a.png', false),
+    loadImage('/textures/tape-b.png', false),
+    loadImage('/textures/stamp-mask.png', false),
+    loadImage('/brand/lockup-light.svg', false),
     ensureFonts(),
   ])
   const canvas = document.createElement('canvas')
@@ -368,22 +377,19 @@ export async function renderPoster(opts: PosterOpts): Promise<Blob> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas is not supported on this device')
 
-  ctx.fillStyle = C.ink
-  ctx.fillRect(0, 0, W, H)
-  drawPanels(ctx)
-  drawVignette(ctx)
-  drawHeader(ctx, opts.title)
-
-  // Red corner: portrait left, name right
-  drawPortrait(ctx, redImg, opts.redName, 270, 470, 175, C.red)
-  drawName(ctx, 'RED CORNER', opts.redName, 1020, 488, 520, 'right', 'up', kgLabel(opts.redKg), 262)
-  // Blue corner: name left, portrait right
-  drawPortrait(ctx, blueImg, opts.blueName, 810, 900, 175, C.blue)
-  drawName(ctx, 'BLUE CORNER', opts.blueName, 60, 880, 520, 'left', 'down', kgLabel(opts.blueKg), 1110)
-
-  drawVS(ctx)
-  drawFooter(ctx, opts.when, opts.url)
-  drawGrain(ctx)
+  drawWall(ctx, toner)
+  drawSheet(ctx, grain)
+  if (lockup) ctx.drawImage(lockup, X0, 112, Math.round(176 * 755 / 308), 176)
+  drawSnipe(ctx, opts.when)
+  drawTitle(ctx, opts.title)
+  drawCorner(ctx, X0, 'red', screenPhoto(redImg), opts.redName)
+  drawCorner(ctx, X0 + COL + GAP, 'blue', screenPhoto(blueImg), opts.blueName)
+  drawVS(ctx, mask)
+  const bottom = drawNames(ctx, opts)
+  drawMatDivider(ctx, Math.min(1050, bottom + 40))
+  drawFooter(ctx, opts.url)
+  drawTape(ctx, tapeA, SX + 40, SY + 6, 300, -24)
+  drawTape(ctx, tapeB, SX + SW - 30, SY + 14, 240, 21)
 
   return toBlob(canvas)
 }
@@ -393,7 +399,6 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     try {
       canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not create poster image'))), 'image/png')
     } catch (e) {
-      // SecurityError if a photo tainted the canvas (CORS) — caller can retry without photos
       reject(e)
     }
   })
@@ -430,7 +435,7 @@ function isAbort(e: unknown) {
 /**
  * Renders the poster and shares it (Web Share API with file) or falls back to
  * downloading the PNG + copying text and link to the clipboard.
- * If a photo taints the canvas, it retries without photos (initials instead).
+ * If anything still taints the canvas, it retries without photos (initials instead).
  */
 export async function sharePoster(opts: PosterOpts): Promise<void> {
   let blob: Blob

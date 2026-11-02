@@ -1,105 +1,76 @@
-import { useCallback, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+/**
+ * Admin kit (IMPLEMENTATION D "components/admin/ui.tsx"): thin layer over the foundation primitives in
+ * components/ui. Forms live on paper, lists on ink. Errors are inline (FormError on paper, LoadError on ink),
+ * confirmations are toasts, and the dialog is kept only for genuinely destructive member actions.
+ */
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { friendlyError } from '../../lib/supabase'
+import { Button, FieldError, Alert, cx, type ButtonVariant } from '../ui'
 
 /* ---------- layout ---------- */
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-xl border border-line bg-surface p-4 ${className}`}>{children}</section>
-}
-
-export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
+/** Section heading on ink: t-head + optional count and a right-hand control. */
+export function SectionHead({ title, count, right, sub, id, as: H = 'h2' }:
+  { title: ReactNode; count?: number; right?: ReactNode; sub?: ReactNode; id?: string; as?: 'h2' | 'h3' }) {
   return (
-    <div className="flex items-end justify-between gap-3 mb-3">
-      <h2 className="font-display text-3xl tracking-wider leading-none">{children}</h2>
-      {right}
-    </div>
+    <>
+      <div className="section-head" style={sub ? { marginBottom: 0 } : undefined}>
+        <H id={id} className="t-head">{title}{count != null && <span className="count">{count}</span>}</H>
+        {right}
+      </div>
+      {sub && <p className="t-help adm-sub">{sub}</p>}
+    </>
   )
 }
 
 /**
- * Captioned form field. Default wraps a single input/select in a <label>.
- * Pass `group` when the field holds buttons (toggles, segmented choices, steppers): a <label>
- * would forward caption taps to its first button and fold the caption into each button's name,
- * so groups render as <div role="group" aria-labelledby> instead.
+ * Captioned group of buttons (segments, steppers): fieldset + legend, so the caption names the group
+ * without being folded into each button's accessible name.
  */
-export function Field({ label, hint, group, children }: { label: string; hint?: ReactNode; group?: boolean; children: ReactNode }) {
-  const id = useId()
-  const caption = 'block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5'
-  const hintEl = hint && <span className="block text-xs text-muted mt-1">{hint}</span>
-  if (group) {
-    return (
-      <div className="block" role="group" aria-labelledby={`${id}-cap`}>
-        <span id={`${id}-cap`} className={caption}>{label}</span>
-        {children}
-        {hintEl}
-      </div>
-    )
-  }
+export function FieldGroup({ label, hint, error, children, className }:
+  { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; className?: string }) {
+  const id = useId().replace(/:/g, '')
   return (
-    <label className="block">
-      <span className={caption}>{label}</span>
+    <fieldset className={cx('field', className)} aria-describedby={[hint && `${id}-h`, error && `${id}-e`].filter(Boolean).join(' ') || undefined}>
+      <legend className="field-label">{label}</legend>
       {children}
-      {hintEl}
-    </label>
+      {hint && <p id={`${id}-h`} className="field-hint">{hint}</p>}
+      {error && <FieldError id={`${id}-e`}>{error}</FieldError>}
+    </fieldset>
   )
 }
 
-export const inputCls =
-  'w-full min-h-12 rounded-lg bg-surface-2 border border-line px-3 text-base text-bone placeholder:text-muted/70 ' +
-  'focus:border-gold focus:outline-none [color-scheme:dark] disabled:opacity-50'
-
-/* ---------- buttons ---------- */
-
-type Variant = 'red' | 'blue' | 'gold' | 'ghost' | 'danger'
-const variantCls: Record<Variant, string> = {
-  red: 'bg-red text-bone hover:bg-red-dark',
-  blue: 'bg-blue text-bone hover:bg-blue-dark',
-  gold: 'bg-gold text-ink hover:brightness-110',
-  ghost: 'bg-surface-2 border border-line text-bone hover:border-muted',
-  danger: 'bg-transparent border border-red/70 text-red hover:bg-red/10',
-}
-
-export function Btn({ variant = 'ghost', busy, className = '', children, disabled, ...rest }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; busy?: boolean }) {
-  return (
-    <button
-      type="button"
-      {...rest}
-      disabled={disabled || busy}
-      className={`min-h-11 rounded-lg px-4 font-semibold tracking-wide transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none ${variantCls[variant]} ${className}`}
-    >
-      {busy ? 'Working…' : children}
-    </button>
-  )
-}
-
-/* ---------- messages ---------- */
-
-export function ErrorBox({ error }: { error: string | null }) {
+/** Form-level error on paper (server refusals): toner text with the red octagon, role=alert. */
+export function FormError({ error }: { error: ReactNode | null | undefined }) {
   if (!error) return null
-  return <p role="alert" className="rounded-lg border border-red/60 bg-red/10 px-3 py-2 text-sm text-bone">{error}</p>
+  return <div className="form-error"><FieldError>{error}</FieldError></div>
 }
 
-export function OkBox({ children }: { children: ReactNode }) {
-  if (!children) return null
-  return <p role="status" className="rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-sm text-gold">{children}</p>
-}
-
-export function Pill({ children, tone = 'muted' }: { children: ReactNode; tone?: 'muted' | 'red' | 'blue' | 'gold' }) {
-  const t = {
-    muted: 'border-line text-muted',
-    red: 'border-red/60 text-red',
-    blue: 'border-blue/60 text-blue',
-    gold: 'border-gold/60 text-gold',
-  }[tone]
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${t}`}>{children}</span>
-}
-
-export function Empty({ children }: { children: ReactNode }) {
-  return <p className="rounded-xl border border-dashed border-line p-6 text-center text-muted">{children}</p>
+/** Load error on ink: paper alert with "Try again". */
+export function LoadError({ error, what, onRetry, busy }: { error: string | null; what: string; onRetry?: () => void; busy?: boolean }) {
+  if (!error) return null
+  return <Alert title={`Couldn't load ${what}.`} onRetry={onRetry} busy={busy}>{error}</Alert>
 }
 
 /* ---------- async action helper ---------- */
+
+/* Admin overrides for codes whose lib/supabase.ts copy breaks the DESIGN 12 vocabulary lock.
+   Same pattern as member/format.ts PICK_CODES; falls through to friendlyError for everything else. */
+const ADMIN_CODES: Record<string, string> = {
+  ADMIN_HAS_BET: 'You have points on this bout, so another admin has to record the result.',
+  BET_TOO_SMALL: 'Put in at least 10 pts.',
+  BET_TOO_LARGE: "That's more than you can put in right now.",
+  ALREADY_BET: 'You already have points on this bout.',
+  BET_NOT_FOUND: 'That pick no longer exists.',
+  BET_NOT_ACTIVE: 'That pick is already closed.',
+}
+
+/** friendlyError with the admin vocabulary overrides applied. */
+export function adminError(e: unknown): string {
+  const raw = String((e as { message?: string; error?: string })?.message ?? (e as { error?: string })?.error ?? e ?? '')
+  for (const tok of raw.match(/[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+/g) ?? []) if (ADMIN_CODES[tok]) return ADMIN_CODES[tok]
+  return friendlyError(e)
+}
 
 /** Wraps an async action with busy + friendly error state. */
 export function useAction() {
@@ -108,7 +79,7 @@ export function useAction() {
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true); setError(null)
     try { return await fn() }
-    catch (e) { setError(friendlyError(e)); return undefined }
+    catch (e) { setError(adminError(e)); return undefined }
     finally { setBusy(false) }
   }, [])
   return { busy, error, setError, run }
@@ -120,28 +91,45 @@ export function must<T>(res: { data: T; error: unknown }): T {
   return res.data
 }
 
+/** Focus the first invalid control inside `root` after React paints the errors (WIG: first error gets focus). */
+export function focusFirstInvalid(root: HTMLElement | null) {
+  requestAnimationFrame(() => {
+    const el = root?.querySelector<HTMLElement>('[aria-invalid="true"], fieldset[aria-describedby] .field-error')
+    const target = el?.matches('.field-error') ? el.closest('fieldset')?.querySelector<HTMLElement>('button, input, select') : el
+    target?.focus()
+  })
+}
+
 /* ---------- confirm dialog ---------- */
 
-interface ConfirmOpts { title: string; body?: ReactNode; confirmLabel?: string; variant?: Variant }
+interface ConfirmOpts { title: string; body?: ReactNode; confirmLabel?: string; variant?: ButtonVariant }
 
-/** Returns [dialogElement, ask]. `await ask({...})` resolves true/false. */
+/**
+ * Returns [dialogElement, ask]. `await ask({...})` resolves true/false.
+ * Native <dialog> (focus trap, Esc closes) styled as a paper sheet on a 50% ink scrim.
+ */
 export function useConfirm(): [ReactNode, (o: ConfirmOpts) => Promise<boolean>] {
   const [opts, setOpts] = useState<ConfirmOpts | null>(null)
   const resolver = useRef<((v: boolean) => void) | null>(null)
+  const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId().replace(/:/g, '')
   const ask = useCallback((o: ConfirmOpts) => new Promise<boolean>(res => { resolver.current = res; setOpts(o) }), [])
-  const close = (v: boolean) => { resolver.current?.(v); resolver.current = null; setOpts(null) }
+  const close = useCallback((v: boolean) => { resolver.current?.(v); resolver.current = null; setOpts(null) }, [])
+  useEffect(() => {
+    const d = ref.current
+    if (opts && d && !d.open) d.showModal?.()
+  }, [opts])
   const el = opts && (
-    <div className="fixed inset-0 z-50 grid place-items-end sm:place-items-center bg-ink/80 backdrop-blur-sm p-4"
-      role="dialog" aria-modal="true" aria-label={opts.title} onClick={() => close(false)}>
-      <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="font-display text-3xl tracking-wider mb-3">{opts.title}</h3>
-        {opts.body && <div className="text-sm text-bone/90 space-y-2 mb-5">{opts.body}</div>}
-        <div className="grid grid-cols-2 gap-3">
-          <Btn onClick={() => close(false)}>Back</Btn>
-          <Btn variant={opts.variant ?? 'red'} onClick={() => close(true)} autoFocus>{opts.confirmLabel ?? 'Confirm'}</Btn>
-        </div>
+    <dialog ref={ref} className="paper adm-confirm" aria-labelledby={titleId}
+      onCancel={e => { e.preventDefault(); close(false) }}
+      onClick={e => { if (e.target === e.currentTarget) close(false) }}>
+      <h2 id={titleId} className="t-head">{opts.title}</h2>
+      {opts.body && <div className="body">{opts.body}</div>}
+      <div className="actions">
+        <Button variant="ghost" onClick={() => close(false)}>Back</Button>
+        <Button variant={opts.variant ?? 'danger'} onClick={() => close(true)}>{opts.confirmLabel ?? 'Confirm'}</Button>
       </div>
-    </div>
+    </dialog>
   )
   return [el, ask]
 }
@@ -174,19 +162,43 @@ export function fromLocalInput(v: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+const TZ = 'Asia/Baghdad'
+
+/** "Thu 6 Nov, 22:30" (24h, the card's time zone). */
 export function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  if (!iso) return 'not set'
+  const d = new Date(iso)
+  const day = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ }).format(d).replace(',', '')
+  return `${day}, ${fmtTime(iso)}`
 }
 
-/** Asia/Baghdad calendar date (YYYY-MM-DD) of an ISO timestamp — mirrors fights.card_date. */
+/** "22:30" (24h, card time zone). */
+export function fmtTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(new Date(iso))
+}
+
+/** Asia/Baghdad calendar date (YYYY-MM-DD) of an ISO timestamp. Mirrors fights.card_date. */
 export function cardDateOf(iso: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
 }
 
+/** "2026-11-06" → "Thu 6 Nov". */
 export function fmtCardDate(d: string): string {
   const [y, m, day] = d.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1, day, 12)).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(y, m - 1, day, 12))).replace(',', '')
+}
+
+/** "2h ago" / "in 3 days" via Intl.RelativeTimeFormat. */
+export function fmtAgo(iso: string, now = Date.now()): string {
+  const s = Math.round((new Date(iso).getTime() - now) / 1000)
+  const rtf = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto', style: 'short' })
+  const a = Math.abs(s)
+  if (a < 45) return 'just now'
+  if (a < 3600) return rtf.format(Math.round(s / 60), 'minute')
+  if (a < 86400) return rtf.format(Math.round(s / 3600), 'hour')
+  if (a < 86400 * 7) return rtf.format(Math.round(s / 86400), 'day')
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso))
 }
 
 /** 10-char password from an unambiguous alphabet, crypto-random. */
@@ -218,7 +230,7 @@ export async function functionError(err: unknown): Promise<Error> {
   return err instanceof Error ? err : new Error(String(err))
 }
 
-/** Parse a weight input ("72.5") → number | null. */
+/** Parse a weight input ("72.5") → number | null (NaN when not a number). */
 export function parseKg(v: string): number | null {
   const t = v.trim().replace(',', '.')
   if (!t) return null
@@ -226,14 +238,5 @@ export function parseKg(v: string): number | null {
   return Number.isFinite(n) ? Math.round(n * 10) / 10 : NaN
 }
 
-/** − value + stepper with ≥44px targets. */
-export function Stepper({ value, min, max, onChange, label }: { value: number; min: number; max: number; onChange: (n: number) => void; label: string }) {
-  const btn = 'min-h-12 min-w-12 rounded-lg border border-line bg-surface-2 font-display text-2xl text-bone disabled:opacity-40'
-  return (
-    <div className="flex items-center gap-2" role="group" aria-label={label}>
-      <button type="button" className={btn} aria-label={`Fewer ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
-      <output className="min-w-12 text-center font-display text-3xl tabular-nums" aria-live="polite">{value}</output>
-      <button type="button" className={btn} aria-label={`More ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
-    </div>
-  )
-}
+/** Capitalise the first letter of stored lowercase text ("half nelson" → "Half nelson"). */
+export const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s)

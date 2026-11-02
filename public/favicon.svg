@@ -1,15 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ef3344"/>
-      <stop offset="1" stop-color="#a4121f"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="#0b0b0d"/>
-  <path d="M64 40 L64 50 Q64 64 50 64 L34 64 Z" fill="#2a6fdb" opacity=".9"/>
-  <path d="M21 45 C15 41 12.5 33 13.5 25 C15 14 23 8 33.5 8 C45 8 52 15.5 52 26.5 C52 35 48.5 41 43 45 Z" fill="url(#g)"/>
-  <path d="M13.6 28.5 C10 29.5 9.5 35.5 13.5 38.5 C17 41 24 40.5 28.5 36.5 C30.5 34.7 29.8 31.6 27.2 31.3 C23.5 30.9 20.5 31.7 18 31 C16.3 30.5 15.3 28.1 13.6 28.5 Z" fill="#c4152a" stroke="#6e0b15" stroke-width="1.6" stroke-linejoin="round"/>
-  <path d="M26 13.5 C31 11.6 38.5 11.8 43.5 15.5" fill="none" stroke="#ff8a95" stroke-width="2.6" stroke-linecap="round" opacity=".75"/>
-  <rect x="19" y="44" width="25.5" height="12.5" rx="3" fill="#e3b341"/>
-  <path d="M19 49.5 H44.5" stroke="#8a6512" stroke-width="1.6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<title>UoS Fight Night</title>
+<path fill="#0b0b0d" d="M256 0 A256 256 0 1 1 256 512 A256 256 0 1 1 256 0Z"/>
+<path fill="#d7192a" fill-rule="evenodd" d="M256 0 A256 256 0 1 1 256 512 A256 256 0 1 1 256 0Z M256 56 A200 200 0 1 1 256 456 A200 200 0 1 1 256 56Z"/>
+<path fill="#f4f1ea" d="M84.5 152.63 L99.13 138 L206.75 138 L221.38 152.63 L221.38 176.94 L206.75 191.57 L144.21 191.57 L144.21 219.77 L187.58 219.77 L202.21 234.41 L202.21 258.71 L187.58 273.35 L144.21 273.35 L144.21 359.37 L129.57 374 L99.13 374 L84.5 359.37Z M289.58 374 L304.21 359.37 L304.21 271.78 L349.84 374 L404.51 374 L419.15 359.37 L419.15 152.63 L404.51 138 L374.07 138 L359.44 152.63 L359.44 240.22 L313.81 138 L259.14 138 L244.51 152.63 L244.51 359.37 L259.14 374Z"/>
 </svg>

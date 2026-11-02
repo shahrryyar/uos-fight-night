@@ -23,15 +23,3 @@ export function useSignedPhoto(path: string | null | undefined) {
   }, [path])
   return url
 }
-
-interface Props { path: string | null | undefined; nickname: string; className?: string; corner?: 'red' | 'blue' }
-
-/** Fighter photo with initials fallback. Size via className (e.g. "size-16"). */
-export default function FighterPhoto({ path, nickname, className = 'size-16', corner }: Props) {
-  const url = useSignedPhoto(path)
-  const ring = corner === 'red' ? 'ring-red' : corner === 'blue' ? 'ring-blue' : 'ring-line'
-  const initials = nickname.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  return url
-    ? <img src={url} alt={nickname} className={`${className} rounded-full object-cover ring-2 ${ring} bg-surface-2`} loading="lazy" />
-    : <div className={`${className} rounded-full ring-2 ${ring} bg-surface-2 grid place-items-center font-display text-muted`} aria-label={nickname}>{initials}</div>
-}

@@ -1,0 +1,163 @@
+/* Admin screens (DESIGN 10 "Admin", 11.16). Scoped under .pg-admin so nothing leaks into member pages.
+   Base kit (paper, field, seg, stepper, stamp, rows, tabs) comes from src/index.css; this file only adds
+   the admin-specific layout pieces the mockup implies but tokens.css does not ship. */
+
+/* ---------- section tabs: all 5 visible at 320px (DESIGN 11.16) ---------- */
+@media (max-width: 359px) {
+  .pg-admin .tabs--5 .tab { font-size: .8125rem; padding-inline: 0; letter-spacing: 0; }
+}
+
+/* ---------- section rhythm ---------- */
+.pg-admin .adm-section { margin-top: 40px; }
+.pg-admin .adm-section:first-of-type { margin-top: 24px; }
+.pg-admin .section-head .t-head { display: flex; align-items: baseline; gap: 10px; }
+.pg-admin .section-head .count { font: 700 var(--text-data-lg)/1 var(--font-data); color: var(--color-bone-2); }
+.pg-admin .adm-sub { margin-top: 4px; color: var(--color-bone-2); }
+.pg-admin .adm-section > .paper { margin-top: 12px; }
+.pg-admin .card-date { margin-top: 18px; }
+.pg-admin .card-date + .bout-card { margin-top: 10px; }
+
+/* ---------- bout sheet ---------- */
+.pg-admin .bout-card .ev-top { flex-wrap: wrap; row-gap: 6px; }
+.pg-admin .bout-card .ev-top .data { white-space: nowrap; margin-inline-start: auto; }
+.pg-admin .mini-vs .kg { display: block; margin-top: 4px; color: var(--color-toner-mute); }
+.pg-admin .bout-lines { margin-top: 10px; }
+.pg-admin .bout-lines .data + .data { margin-top: 2px; }
+.pg-admin .bout-card .waitlist { margin-top: 12px; }
+.pg-admin .bout-actions { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+.pg-admin .bout-actions .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pg-admin .bout-actions .btn--sm { width: 100%; }
+.pg-admin .note-line { display: flex; gap: 8px; align-items: flex-start; font: 400 var(--text-body-sm)/1.45 var(--font-body); color: var(--color-toner-mute); }
+.pg-admin .note-line svg { flex: none; font-size: 1.125rem; translate: 0 2px; color: var(--color-toner); }
+.pg-admin .form .t-help { color: var(--color-toner-mute); }
+.pg-admin .form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pg-admin .form legend.field-label { padding: 0; margin-bottom: 6px; }
+.pg-admin .field-label .opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.pg-admin .review .t-score .dash { color: var(--color-toner); font-size: .6em; }
+.pg-admin .review li q { quotes: "\201C" "\201D"; }
+.pg-admin .done .t-head { margin-top: 10px; }
+.pg-admin .done p.t-help { margin-top: 6px; }
+.pg-admin .done details { margin-top: 12px; }
+.pg-admin details > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font: 700 var(--text-body-sm)/1.2 var(--font-body); }
+.pg-admin details pre { max-height: 18rem; overflow: auto; margin: 0; padding: 12px; background: var(--color-toner); color: var(--color-bone); font: 400 .8125rem/1.4 var(--font-data); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pg-admin .form-error { margin-top: 2px; }
+
+/* corner band directly above a select/input (no coloured side borders, DESIGN 6) */
+.pg-admin .corner-field { display: grid; }
+.pg-admin .corner-field .corner { margin: 0; }
+.pg-admin .corner-field .select, .pg-admin .corner-field .input { border-top: 0; }
+.pg-admin .corner-pick { display: grid; grid-template-columns: 1fr 6.5rem; gap: 10px; align-items: end; }
+.pg-admin .corner-pick .field-label { margin-bottom: 6px; display: block; }
+
+/* date-time pickers on paper: light chrome so the calendar glyph reads on bone */
+.pg-admin .paper input[type="datetime-local"] { color-scheme: light; font: 700 1rem/1.2 var(--font-data); }
+
+/* ---------- lists on ink ---------- */
+.pg-admin .adm-rows > li { min-height: 60px; }
+.pg-admin .adm-row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; width: 100%; min-height: 64px; padding: 8px 0; border: 0; background: transparent; color: inherit; text-align: start; font: inherit; }
+.pg-admin button.adm-row { cursor: pointer; margin-inline: -8px; padding-inline: 8px; width: calc(100% + 16px); }
+@media (hover: hover) { .pg-admin button.adm-row:hover { background: var(--color-ink-2); } }
+.pg-admin button.adm-row[aria-expanded="true"] { background: var(--color-ink-2); }
+.pg-admin .adm-row--np { grid-template-columns: 1fr auto; }
+.pg-admin .adm-row .t-sub { display: block; }
+.pg-admin .adm-row .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; color: var(--color-bone-2); }
+.pg-admin .adm-row .end { display: grid; justify-items: end; gap: 2px; text-align: end; }
+.pg-admin .adm-row .end .label { color: var(--color-bone-2); }
+.pg-admin .adm-row .chev { font-size: 1.25rem; color: var(--color-bone-2); }
+.pg-admin .adm-row .ht { width: 48px; }
+.pg-admin .row-panel { margin: 4px 0 16px; }
+
+/* card order rows */
+.pg-admin .order-row { display: grid; grid-template-columns: 2.25rem 1fr auto; gap: 10px; align-items: center; min-height: 64px; padding: 8px 0; }
+.pg-admin .order-row .moves { display: flex; gap: 6px; }
+.pg-admin .order-row .moves .btn { width: 44px; }
+.pg-admin .order-row .btn:disabled { background: transparent; color: var(--color-mute); box-shadow: inset 0 0 0 var(--rule) var(--color-ink-rule); }
+.pg-admin .vs-names { font: 800 var(--text-sub)/var(--text-sub--line-height) var(--font-display); text-transform: uppercase; overflow-wrap: anywhere; }
+.pg-admin .vs-names .v { font-size: 1rem; color: var(--color-bone-2); }
+.pg-admin .ink-help { margin-top: 10px; color: var(--color-bone-2); }
+.pg-admin .link-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--color-bone); font: 700 var(--text-body-sm)/1.2 var(--font-body); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.pg-admin .link-btn:disabled { color: var(--color-mute); text-decoration: none; cursor: default; }
+
+/* admin log */
+.pg-admin .log-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; padding: 12px 0; }
+.pg-admin .log-row .say { font: 700 1rem/1.4 var(--font-body); overflow-wrap: anywhere; }
+.pg-admin .log-row .why { grid-column: 1 / -1; color: var(--color-bone-2); font: 400 var(--text-body-sm)/1.45 var(--font-body); overflow-wrap: anywhere; }
+.pg-admin .log-row time { color: var(--color-bone-2); white-space: nowrap; }
+.pg-admin .more { margin-top: 16px; }
+
+/* ---------- forms on ink (search) ---------- */
+.pg-admin .ink-field .field-label { color: var(--color-bone); }
+.pg-admin .ink-field .input { border-color: var(--color-bone); }
+.pg-admin .ink-field .input:focus-visible { outline-color: var(--color-bone); }
+
+/* ---------- photo drop target (DESIGN 11.16 Fighters admin) ---------- */
+.pg-admin .drop { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: start; padding: 12px; border: var(--rule) dashed var(--color-toner-rule); }
+.pg-admin .drop[data-over] { border-color: var(--color-toner); border-style: solid; background: color-mix(in srgb, var(--color-toner) 6%, transparent); }
+.pg-admin .drop .ht { width: 112px; }
+.pg-admin .drop .side-col { display: grid; gap: 8px; min-width: 0; }
+.pg-admin .drop .side-col .btn { white-space: normal; text-wrap: balance; line-height: 1.05; text-align: center; }
+.pg-admin .drop .btn--sm { width: 100%; }
+.pg-admin .drop .file-btn { position: relative; }
+.pg-admin .drop .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pg-admin .drop .file-btn:focus-within { outline: 3px solid var(--color-toner); outline-offset: 2px; }
+.pg-admin .drop .direction { grid-column: 1 / -1; }
+.pg-admin .drop .direction b { font-weight: 700; color: var(--color-toner); }
+@media (max-width: 359px) {
+  .pg-admin .drop { grid-template-columns: 88px minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .pg-admin .drop .ht { width: 88px; }
+}
+
+/* ---------- copy rows (generated password) ---------- */
+.pg-admin .copy-row { display: grid; gap: 6px; }
+.pg-admin .copy-row .val { display: flex; align-items: center; gap: 10px; }
+.pg-admin .copy-row .val > :first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; user-select: all; }
+.pg-admin .copy-row .msg { font: 400 var(--text-body-sm)/1.45 var(--font-body); }
+.pg-admin .pw-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+.pg-admin .pw-row .btn { width: auto; }
+/* 320px: the 10-char Courier password gets its own full-width row, New + Copy share the row below */
+@media (max-width: 359px) {
+  .pg-admin .pw-row { grid-template-columns: 1fr 1fr; }
+  .pg-admin .pw-row > :first-child { grid-column: 1 / -1; }
+  .pg-admin .pw-row .btn { width: 100%; }
+}
+.pg-admin .ready { display: grid; gap: 16px; }
+
+/* points */
+.pg-admin .quick { margin-top: 8px; grid-template-columns: repeat(5, 1fr); grid-auto-flow: row; }
+.pg-admin .quick .seg { font: 700 1rem/1 var(--font-data); padding-inline: 2px; }
+/* 320px: 5-up row is too tight, wrap to 3 + 2 (6-col grid so the second row fills the width) */
+@media (max-width: 359px) {
+  .pg-admin .quick { grid-template-columns: repeat(6, 1fr); }
+  .pg-admin .quick .seg { grid-column: span 2; padding-inline: 8px; }
+  .pg-admin .quick .seg:nth-child(n+4) { grid-column: span 3; }
+}
+
+/* DESIGN 5: red on paper is large-text only (18.66px bold+). Small red stamps on paper become
+   bone on red fill (same as .stamp--live); small danger buttons on paper get toner text, red outline kept. */
+.pg-admin .paper .stamp.stamp--sm:not(.stamp--ink):not(.stamp--bone):not(.stamp--blue):not(.stamp--live) {
+  color: var(--color-bone); background: var(--color-red); border-color: var(--color-red);
+}
+.pg-admin .paper .btn--danger.btn--sm { color: var(--color-toner); }
+.pg-admin .stepper output.neg { color: var(--color-toner); }
+.pg-admin .bal-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---------- confirm dialog (genuinely destructive member actions only) ---------- */
+dialog.adm-confirm { width: min(calc(100% - 32px), 448px); max-width: none; margin: auto; border: 0; overscroll-behavior: contain; }
+dialog.adm-confirm::backdrop { background: rgb(11 11 13 / .5); }
+dialog.adm-confirm .t-head { margin-bottom: 10px; }
+dialog.adm-confirm .body { display: grid; gap: 8px; font: 400 .9375rem/1.45 var(--font-body); }
+dialog.adm-confirm .actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 18px; }
+dialog.adm-confirm :focus-visible { outline-color: var(--color-toner); }
+.pg-admin .form--flush { margin-top: 0; padding-top: 0; border-top: 0; }
+.pg-admin .adm-row .end--chev { display: flex; align-items: center; gap: 8px; }
+.pg-admin .adm-row .end--chev > span { display: grid; justify-items: end; gap: 2px; }
+
+/* ---------- segs: whole words only (fixes "SUBMISSI / ON" at 320px) ----------
+   Plain labels never break mid-word; only fighter-name segs (red/blue corner) may break anywhere,
+   since a long name has no other way to fit. At 320px the 3-up "How it ended" row tightens type
+   and padding so "Submission" sits on one line, as in the admin-settle mockup. */
+.pg-admin .seg { overflow-wrap: normal; }
+.pg-admin .seg--red, .pg-admin .seg--blue { overflow-wrap: anywhere; }
+@media (max-width: 359px) {
+  .pg-admin .segs .seg:not(.seg--red):not(.seg--blue) { font-size: .9375rem; padding-inline: 4px; }
+}

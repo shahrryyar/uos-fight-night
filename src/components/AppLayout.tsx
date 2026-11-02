@@ -1,58 +1,70 @@
-import { Suspense } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { shownName, useAuth } from '../lib/auth'
-import Splash from './landing/Splash'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
+import { useBalance } from '../lib/hooks'
+import { BalanceContext } from '../lib/balance'
+import { fmtNum } from '../lib/copy'
+import { Logo, RegaCredit } from './brand'
+import { CalendarDot, ClockCounterClockwise, Ranking, UserCircle, UsersThree, Loading, type IconComponent } from './ui'
 
-const tabs = [
-  { to: '/app', label: 'Tonight', icon: '🥊', end: true },
-  { to: '/app/fighters', label: 'Fighters', icon: '🤼' },
-  { to: '/app/leaderboard', label: 'Ranks', icon: '🏆' },
-  { to: '/app/history', label: 'History', icon: '📜' },
-  { to: '/app/me', label: 'Me', icon: '👤' },
+const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] = [
+  { to: '/app', label: 'Tonight', icon: CalendarDot, end: true },
+  { to: '/app/fighters', label: 'Fighters', icon: UsersThree },
+  { to: '/app/leaderboard', label: 'Ranks', icon: Ranking },
+  { to: '/app/history', label: 'History', icon: ClockCounterClockwise },
+  { to: '/app/me', label: 'Me', icon: UserCircle },
 ]
 
+/** App shell (DESIGN 11.1, 11.2, 11.20): non-sticky app bar, fixed bottom tab bar, credit after every page. */
 export default function AppLayout() {
-  const { isAdmin, profile } = useAuth()
-  const name = shownName(profile)
+  const { isAdmin } = useAuth()
+  const { balance, loading, reload } = useBalance()
+  const { pathname } = useLocation()
+  // keep the stub honest: refresh on navigation and when the app comes back to the foreground
+  const seen = useRef(pathname)
+  useEffect(() => {
+    if (seen.current === pathname) return
+    seen.current = pathname
+    void reload()
+  }, [pathname, reload])
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') void reload() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [reload])
+  const ctx = useMemo(() => ({ balance: balance ?? null, loading, reload }), [balance, loading, reload])
+  const shown = balance == null ? '…' : fmtNum(balance)
+
   return (
-    <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-20 bg-ink/90 backdrop-blur border-b border-line pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto max-w-2xl flex items-center justify-between gap-2 px-2 h-14">
-          <NavLink to="/app" end aria-label="UoS Fight Night: tonight's card"
-            className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 font-display text-2xl tracking-wider">
-            <span>UOS <span className="text-red">FIGHT</span> <span className="text-gold">NIGHT</span></span>
+    <BalanceContext.Provider value={ctx}>
+      <a className="skip" href="#main">Skip to content</a>
+      <header className="wrap appbar">
+        <NavLink to="/app" end className="brand" aria-label="UoS Fight Night: tonight's card">
+          <Logo variant="mark" size={40} decorative />
+        </NavLink>
+        <div className="appbar-right">
+          {isAdmin && <NavLink to="/admin" className="btn btn--ghost btn--sm">Admin</NavLink>}
+          <NavLink to="/app/me" className="stub balance"
+            aria-label={balance == null ? 'Your points are loading. Open Me' : `Your points: ${shown}. Open Me`}>
+            <span className="data-lg">{shown}</span><span className="label">pts</span>
           </NavLink>
-          <div className="flex min-w-0 items-center gap-1 text-sm">
-            {isAdmin && (
-              <NavLink to="/admin"
-                className={({ isActive }) => `inline-flex min-h-11 items-center rounded-lg border px-3 font-semibold ${isActive ? 'border-gold bg-gold/15 text-gold' : 'border-gold/50 text-gold'}`}>
-                Admin
-              </NavLink>
-            )}
-            <NavLink to="/app/me" title={profile ? `@${profile.username}` : undefined}
-              className="inline-flex min-h-11 min-w-0 items-center rounded-lg px-2 font-semibold text-bone/85 hover:text-bone">
-              <span className="truncate max-w-[8rem]">{name}</span>
-            </NavLink>
-          </div>
         </div>
       </header>
-      <main className="flex-1 mx-auto w-full max-w-2xl px-4 pt-4 pb-28">
-        <Suspense fallback={<Splash inline />}>
+      <main id="main" className="wrap has-tabbar">
+        <Suspense fallback={<Loading label="Loading…" />}>
           <Outlet />
         </Suspense>
+        <RegaCredit />
       </main>
-      <nav className="fixed bottom-0 inset-x-0 z-20 bg-surface/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]">
-        <ul className="mx-auto max-w-2xl grid grid-cols-5">
-          {tabs.map(t => (
-            <li key={t.to}>
-              <NavLink to={t.to} end={t.end}
-                className={({ isActive }) => `flex flex-col items-center justify-center h-16 text-[11px] font-semibold uppercase tracking-wide ${isActive ? 'text-gold' : 'text-muted'}`}>
-                <span className="text-xl leading-none mb-1" aria-hidden>{t.icon}</span>{t.label}
-              </NavLink>
+      <nav className="tabbar" aria-label="Main">
+        <ul>
+          {tabs.map(({ to, label, icon: Ico, end }) => (
+            <li key={to}>
+              <NavLink to={to} end={end}><Ico />{label}</NavLink>
             </li>
           ))}
         </ul>
       </nav>
-    </div>
+    </BalanceContext.Provider>
   )
 }

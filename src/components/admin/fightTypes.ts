@@ -22,4 +22,6 @@ export const FINISH_MOVES = [
   'half nelson', 'headlock', 'cradle', 'arm bar', 'rear naked choke', 'body lock', 'cross face', 'double leg',
 ]
 
-export const kgLabel = (n: number | null | undefined) => (n == null ? '— kg' : `${Number(n).toFixed(1).replace(/\.0$/, '')} kg`)
+/** "84 kg" (no-break space, WIG units); "kg not set" when unknown. */
+export const kgLabel = (n: number | null | undefined) => (n == null ? 'kg not set' : `${kgNum(n)} kg`)
+export const kgNum = (n: number) => Number(n).toFixed(1).replace(/\.0$/, '')
