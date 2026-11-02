@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase, friendlyError } from './supabase'
-import type { Fighter, Profile } from './types'
+import type { Fight, Fighter, FighterRanking, Profile, Side, WinMethod } from './types'
 
 export interface AsyncState<T> {
   data: T | null
@@ -132,14 +132,168 @@ export function useFightersMap(ids?: string[]) {
   }, [key])
 }
 
-/** Loads usernames for a set of profile ids. */
+/** Loads display names (and usernames) for a set of profile ids. */
 export function useProfilesMap(ids: string[]) {
-  const key = [...new Set(ids)].sort().join(',')
+  const key = [...new Set(ids.filter(Boolean))].sort().join(',')
   return useAsync(async () => {
     if (!key) return new Map<string, Pick<Profile, 'id' | 'username' | 'display_name'>>()
     const rows = must(await supabase.from('profiles').select('id,username,display_name').in('id', key.split(','))) as Pick<Profile, 'id' | 'username' | 'display_name'>[]
     return new Map(rows.map(p => [p.id, p]))
   }, [key])
+}
+
+/** The name shown on every screen: display_name (admin-set), never the login username. */
+export const displayName = (p: Pick<Profile, 'display_name'> & { username?: string | null } | null | undefined, fallback = 'Member') =>
+  p?.display_name?.trim() || fallback
+
+/** Map of profile id → display name. */
+export function useDisplayNames(ids: string[]) {
+  const st = useProfilesMap(ids)
+  const map = new Map<string, string>()
+  for (const [k, v] of st.data ?? []) map.set(k, displayName(v))
+  return map
+}
+
+// ---------- Wave A row types (columns added by Addendum A / B2 / B3) ----------
+
+export type CancelKind = 'cancelled' | 'no_contest' | 'declined'
+
+/** fights row incl. match-stats, consent and bout-order columns. */
+export type FightRow = Fight & {
+  red_weight_kg?: number | string | null
+  blue_weight_kg?: number | string | null
+  rounds?: number | null
+  red_score?: number | null
+  blue_score?: number | null
+  finish_move?: string | null
+  red_accepted_at?: string | null
+  blue_accepted_at?: string | null
+  cancel_kind?: CancelKind | null
+  bout_order?: number | null
+  is_main_event?: boolean | null
+  card_date?: string | null
+}
+
+/** One row of view `fight_results` (one per settled fight per fighter perspective). */
+export interface FightResult {
+  fight_id: string
+  fighter_id: string
+  opponent_id: string
+  side: Side
+  result: 'W' | 'L'
+  method: WinMethod | null
+  finish_move: string | null
+  rounds: number | null
+  score_for: number | null
+  score_against: number | null
+  weight_kg: number | string | null
+  opponent_weight_kg: number | string | null
+  elo_delta: number | null
+  settled_at: string | null
+  result_note: string | null
+}
+
+/** fighter_rankings incl. Addendum A totals. */
+export type FighterStats = FighterRanking & {
+  total_rounds?: number | null
+  points_for?: number | null
+  points_against?: number | null
+  wins_pin?: number | null
+  wins_submission?: number | null
+  wins_decision?: number | null
+  losses_pin?: number | null
+  losses_submission?: number | null
+  losses_decision?: number | null
+  weight_kg?: number | string | null
+}
+
+/** numeric columns arrive as strings from PostgREST; normalise. */
+export const num = (v: number | string | null | undefined): number | null => {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/** "72.5 kg" (or '' when unknown). */
+export const fmtKg = (v: number | string | null | undefined) => {
+  const n = num(v)
+  return n == null ? '' : `${Number.isInteger(n) ? n : n.toFixed(1)} kg`
+}
+
+/** Weight for a corner: the fight's snapshot, else the fighter's current weight. */
+export const cornerKg = (f: FightRow, side: Side, fighter?: Pick<Fighter, 'weight_kg'> | null) =>
+  num(side === 'red' ? f.red_weight_kg : f.blue_weight_kg) ?? num(fighter?.weight_kg)
+
+/** "PIN (half nelson)" style — method upper-cased by caller's CSS if desired. */
+export const methodMove = (method: string | null | undefined, move?: string | null) => {
+  const m = method ? (METHOD_LABEL[method] ?? method) : '—'
+  return move?.trim() ? `${m} (${move.trim()})` : m
+}
+
+/** "Lost by pin" */
+export const lostBy = (method: string | null | undefined) => `Lost by ${method ? (METHOD_LABEL[method] ?? method).toLowerCase() : '—'}`
+
+/** "6 – 3" (en dash) or '' when scores missing. */
+export const fmtScore = (a: number | null | undefined, b: number | null | undefined) =>
+  a == null || b == null ? '' : `${a} – ${b}`
+
+export const fmtRounds = (n: number | null | undefined) => (n == null ? '' : `${n} round${n === 1 ? '' : 's'}`)
+
+/** Asia/Baghdad calendar date (YYYY-MM-DD) — fallback when card_date is absent. */
+export const baghdadDate = (iso: string) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+
+export const cardDateOf = (f: FightRow) => f.card_date ?? baghdadDate(f.scheduled_at)
+
+/** "Fri, Nov 7" for a YYYY-MM-DD card date (no timezone shift). */
+export const fmtCardDate = (d: string, withYear = false) => {
+  const [y, m, day] = d.split('-').map(Number)
+  if (!y || !m || !day) return d
+  return new Date(y, m - 1, day).toLocaleDateString(undefined,
+    withYear ? { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+type BoutSortable = Pick<FightRow, 'scheduled_at'> & { is_main_event?: boolean | null; bout_order?: number | null }
+
+/** Bout order within a card: by bout_order, main event always last. Shared by member and admin views. */
+export const boutSort = (a: BoutSortable, b: BoutSortable) =>
+  Number(!!a.is_main_event) - Number(!!b.is_main_event)
+  || (a.bout_order ?? 1e6) - (b.bout_order ?? 1e6)
+  || a.scheduled_at.localeCompare(b.scheduled_at)
+
+/** Cancellation line: plain cancel / no contest / declined. */
+export function cancelCopy(f: FightRow): { title: string; sub: string } {
+  switch (f.cancel_kind) {
+    case 'no_contest': return { title: 'NO CONTEST — points refunded', sub: 'Stopped with no result. No record change.' }
+    case 'declined': return { title: 'Fight declined', sub: 'A fighter passed on this booking. No record change.' }
+    default: return { title: 'Fight cancelled', sub: 'All points picks were refunded.' }
+  }
+}
+
+export interface CardGroup<T extends FightRow> { cardDate: string; fights: T[] }
+
+/** Groups fights by card_date; fights within a card in bout order (main event last). */
+export function groupByCard<T extends FightRow>(fights: T[], newestFirst = false): CardGroup<T>[] {
+  const by = new Map<string, T[]>()
+  for (const f of fights) {
+    const k = cardDateOf(f)
+    const arr = by.get(k)
+    if (arr) arr.push(f); else by.set(k, [f])
+  }
+  return [...by.entries()]
+    .sort(([a], [b]) => (newestFirst ? b.localeCompare(a) : a.localeCompare(b)))
+    .map(([cardDate, list]) => ({ cardDate, fights: liveMainOnly(list).sort(boutSort) }))
+}
+
+/**
+ * A cancelled main event keeps is_main_event = true in the db, and a replacement can be
+ * booked as main on the same card. When a non-cancelled main exists, drop the flag from the
+ * cancelled ones so the card shows a single MAIN EVENT. A lone cancelled/no-contest main keeps it.
+ */
+export function liveMainOnly<T extends FightRow>(list: T[]): T[] {
+  const hasLiveMain = list.some(f => f.is_main_event && f.status !== 'cancelled')
+  if (!hasLiveMain) return [...list]
+  return list.map(f => (f.is_main_event && f.status === 'cancelled' ? { ...f, is_main_event: false } : f))
 }
 
 export const record = (f: Pick<Fighter, 'wins' | 'losses'> | null | undefined) => (f ? `${f.wins}-${f.losses}` : '0-0')

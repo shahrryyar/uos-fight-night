@@ -31,23 +31,17 @@ create or replace function tests.login(p_name text) returns void language sql as
     json_build_object('sub', tests.uid(p_name), 'role', 'authenticated')::text, true);
 $$;
 
-create or replace function tests.mk_user(p_name text, p_username text, p_code text) returns void
+-- accounts are created by the service-role admin API (admin-create-user);
+-- inserting into auth.users exercises the same on_auth_user_created trigger.
+create or replace function tests.mk_user(p_name text, p_username text, p_display text default null) returns void
 language sql as $$
   insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                           raw_user_meta_data, raw_app_meta_data, created_at, updated_at)
   values ('00000000-0000-0000-0000-000000000000', tests.uid(p_name), 'authenticated', 'authenticated',
           p_username || '@members.uosfight.local', '',
-          jsonb_build_object('username', p_username, 'invite_code', p_code),
+          case when p_display is null then jsonb_build_object('username', p_username)
+               else jsonb_build_object('username', p_username, 'display_name', p_display) end,
           '{"provider":"email","providers":["email"]}', now(), now());
-$$;
-
-create or replace function tests.hook(p_username text, p_code text, p_email text default null)
-returns jsonb language sql as $$
-  select public.hook_before_user_created(jsonb_build_object(
-    'metadata', jsonb_build_object('name', 'before-user-created'),
-    'user', jsonb_build_object(
-      'email', coalesce(p_email, p_username || '@members.uosfight.local'),
-      'user_metadata', jsonb_build_object('username', p_username, 'invite_code', p_code))));
 $$;
 
 create or replace function tests.bal(p_name text) returns int language sql as $$
@@ -61,85 +55,56 @@ $$;
 grant usage on schema tests to authenticated, anon;
 grant execute on all functions in schema tests to authenticated, anon;
 
--- ---------------------------------------------------------------------------
--- Invites fixture
--- ---------------------------------------------------------------------------
-insert into public.invites (code, max_uses, uses, expires_at, revoked) values
-  ('TESTINV1', 100, 0, null, false),
-  ('TESTUSED', 1,   1, null, false),
-  ('TESTREVK', 5,   0, null, true),
-  ('TESTEXPD', 5,   0, now() - interval '1 hour', false),
-  ('TESTONCE', 1,   0, now() + interval '1 day', false);
+-- ===========================================================================
+-- 1. Signup is closed: no invites, no hook; trigger builds profiles
+-- ===========================================================================
+select hasnt_table('public', 'invites', 'invites table removed');
+select hasnt_function('public', 'hook_before_user_created', 'before_user_created hook removed');
+select hasnt_function('public', 'admin_create_invite', 'admin_create_invite removed');
+select hasnt_function('public', 'admin_revoke_invite', 'admin_revoke_invite removed');
 
 -- ===========================================================================
--- 1. before_user_created hook
+-- 2. Signup trigger (fires for service-role admin.createUser)
 -- ===========================================================================
-select ok(has_function_privilege('supabase_auth_admin', 'public.hook_before_user_created(jsonb)', 'execute'),
-          'supabase_auth_admin can execute the hook');
-select ok(not has_function_privilege('authenticated', 'public.hook_before_user_created(jsonb)', 'execute')
-          and not has_function_privilege('anon', 'public.hook_before_user_created(jsonb)', 'execute'),
-          'clients cannot execute the hook');
-select is(tests.hook('newbie', 'TESTINV1'), '{}'::jsonb, 'hook: valid invite + username allowed');
-select is(tests.hook('newbie', 'testinv1'), '{}'::jsonb, 'hook: invite code is case-insensitive');
-select is(tests.hook('newbie', 'NOPE1234') -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: unknown invite rejected');
-select is((tests.hook('newbie', 'NOPE1234') -> 'error' ->> 'http_code')::int, 400, 'hook: rejection is http 400');
-select is(tests.hook('newbie', 'TESTUSED') -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: used-up invite rejected');
-select is(tests.hook('newbie', 'TESTREVK') -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: revoked invite rejected');
-select is(tests.hook('newbie', 'TESTEXPD') -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: expired invite rejected');
-select is(tests.hook('newbie', null) -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: missing invite rejected');
-select is(tests.hook('ab', 'TESTINV1') -> 'error' ->> 'message', 'INVALID_USERNAME', 'hook: too-short username rejected');
-select is(tests.hook('bad-name!', 'TESTINV1') -> 'error' ->> 'message', 'INVALID_USERNAME', 'hook: bad chars rejected');
-select is(tests.hook('newbie', 'TESTINV1', 'someone@gmail.com') -> 'error' ->> 'message', 'INVALID_USERNAME',
-          'hook: email not matching synthetic username email rejected');
-reset role;
+select lives_ok($$ select tests.mk_user('a1', 'tq_admin_one', 'Admin One') $$, 'create a1');
+select tests.mk_user('a2', 'tq_admin_two', 'Admin Two');
+select tests.mk_user('u1', 'tq_user_one', 'User One');
+select tests.mk_user('u2', 'tq_user_two', 'User Two');
+select tests.mk_user('u3', 'tq_user_three', 'User Three');
+select tests.mk_user('u4', 'tq_user_four', 'User Four');
+select tests.mk_user('p1', 'tq_fighter_guy', 'Fighter Guy');
+select tests.mk_user('poor', 'tq_poor_guy', 'Poor Guy');
+select tests.mk_user('broke', 'tq_broke_guy');
+select lives_ok($$ select tests.mk_user('gone', 'tq_gone_guy', 'Gone Guy') $$, 'create gone');
 
-set local role authenticated;
-select throws_ok($$ select tests.hook('newbie', 'TESTINV1') $$, '42501', null,
-                 'authenticated cannot execute the auth hook');
-reset role;
-
--- ===========================================================================
--- 2. Signup trigger
--- ===========================================================================
-select lives_ok($$ select tests.mk_user('a1', 'admin_one', 'TESTINV1') $$, 'signup a1');
-select tests.mk_user('a2', 'admin_two', 'testinv1');
-select tests.mk_user('u1', 'user_one', 'TESTINV1');
-select tests.mk_user('u2', 'user_two', 'TESTINV1');
-select tests.mk_user('u3', 'user_three', 'TESTINV1');
-select tests.mk_user('u4', 'user_four', 'TESTINV1');
-select tests.mk_user('p1', 'fighter_guy', 'TESTINV1');
-select tests.mk_user('poor', 'poor_guy', 'TESTINV1');
-select tests.mk_user('broke', 'broke_guy', 'TESTINV1');
-select lives_ok($$ select tests.mk_user('gone', 'gone_guy', 'TESTONCE') $$, 'signup consumes last use of single-use invite');
-
-select is((select uses from public.invites where code = 'TESTINV1'), 9, 'invite uses incremented per signup');
-select is((select uses from public.invites where code = 'TESTONCE'), 1, 'single-use invite now used');
-select is((select username::text from public.profiles where id = tests.uid('u1')), 'user_one', 'profile created with username');
+select is((select username::text from public.profiles where id = tests.uid('u1')), 'tq_user_one', 'profile created with username');
+select is((select display_name from public.profiles where id = tests.uid('u1')), 'User One', 'profile display_name from user_metadata');
+select is((select display_name from public.profiles where id = tests.uid('broke')), 'tq_broke_guy', 'display_name defaults to username');
 select is((select role from public.profiles where id = tests.uid('u1')), 'member', 'new profile is member');
 select is(tests.bal('u1'), 1000, 'signup grants 1000 points');
 select is((select reason from public.points_ledger where user_id = tests.uid('u1')), 'signup', 'signup ledger reason');
 
-select is(tests.hook('user_one', 'TESTINV1') -> 'error' ->> 'message', 'USERNAME_TAKEN', 'hook: taken username rejected');
-select is(tests.hook('USER_ONE', 'TESTINV1', 'user_one@members.uosfight.local') -> 'error' ->> 'message',
-          'USERNAME_TAKEN', 'hook: username uniqueness is case-insensitive');
-select is(tests.hook('newbie', 'TESTONCE') -> 'error' ->> 'message', 'INVALID_INVITE', 'hook: invite rejected once used up');
-reset role;
-
 select throws_ok($$
   insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
   values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
-          'late@members.uosfight.local', '{"username":"late","invite_code":"TESTONCE"}')
-$$, null, 'INVALID_INVITE', 'trigger rejects used invite even if hook was bypassed (race)');
+          'TQ_User_One@members.uosfight.local', '{"username":"TQ_User_One"}')
+$$, null, 'USERNAME_TAKEN', 'trigger rejects duplicate username (case-insensitive)');
 select throws_ok($$
   insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
   values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
-          'User_One@members.uosfight.local', '{"username":"User_One","invite_code":"TESTINV1"}')
-$$, null, 'USERNAME_TAKEN', 'trigger rejects duplicate username');
+          'tq_someone@gmail.com', '{"username":"tq_someone"}')
+$$, null, 'INVALID_USERNAME', 'trigger rejects non-synthetic email');
 select throws_ok($$
   insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
   values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
-          'someone@gmail.com', '{"username":"someone","invite_code":"TESTINV1"}')
-$$, null, 'INVALID_USERNAME', 'trigger rejects non-synthetic email (hook disabled/bypassed)');
+          'x!@members.uosfight.local', '{"username":"x!"}')
+$$, null, 'INVALID_USERNAME', 'trigger rejects invalid username');
+select throws_ok($$
+  insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
+  values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
+          'tq_longname@members.uosfight.local', '{"username":"tq_longname","display_name":"abcdefghijklmnopqrstuvwxyz"}')
+$$, null, 'INVALID_DISPLAY_NAME', 'trigger rejects display_name over 24 chars');
+select col_not_null('public', 'profiles', 'display_name', 'profiles.display_name is NOT NULL');
 
 update public.profiles set role = 'admin' where id in (tests.uid('a1'), tests.uid('a2'));
 update public.profiles set active = false where id = tests.uid('gone');
@@ -149,7 +114,6 @@ update public.profiles set active = false where id = tests.uid('gone');
 -- ===========================================================================
 set local role anon;
 select throws_ok('select * from public.profiles',      '42501', null, 'anon cannot select profiles');
-select throws_ok('select * from public.invites',       '42501', null, 'anon cannot select invites');
 select throws_ok('select * from public.fighters',      '42501', null, 'anon cannot select fighters');
 select throws_ok('select * from public.fights',        '42501', null, 'anon cannot select fights');
 select throws_ok('select * from public.votes',         '42501', null, 'anon cannot select votes');
@@ -162,35 +126,37 @@ select throws_ok('select * from public.balances',            '42501', null, 'ano
 select throws_ok('select * from public.leaderboard_bettors', '42501', null, 'anon cannot select leaderboard_bettors');
 select throws_ok('select * from public.fighter_rankings',    '42501', null, 'anon cannot select fighter_rankings');
 select throws_ok('select * from public.fight_vote_totals',   '42501', null, 'anon cannot select fight_vote_totals');
+select throws_ok('select * from public.fight_results',       '42501', null, 'anon cannot select fight_results');
 select throws_ok($$ select public.cast_vote(gen_random_uuid(), 'red') $$, '42501', null, 'anon cannot execute cast_vote');
 select throws_ok($$ select public.place_bet(gen_random_uuid(), 'red', 10) $$, '42501', null, 'anon cannot execute place_bet');
-select throws_ok($$ select public.admin_create_invite(1, null) $$, '42501', null, 'anon cannot execute admin RPCs');
+select throws_ok($$ select public.admin_correct_result(gen_random_uuid(), 'xxxxx') $$, '42501', null, 'anon cannot execute admin RPCs');
+select throws_ok($$ select public.accept_fight(gen_random_uuid()) $$, '42501', null, 'anon cannot execute accept_fight');
 select throws_ok($$ select public.is_member() $$, '42501', null, 'anon cannot execute is_member');
 select lives_ok('select * from public.public_next_fight()', 'anon can call public_next_fight');
 reset role;
 
 select is(
   (select array_to_string(proargnames, ',') from pg_proc where proname = 'public_next_fight' and pronamespace = 'public'::regnamespace),
-  'id,title,lock_at,scheduled_at,status,red_nickname,blue_nickname',
-  'public_next_fight returns only id/title/times/status/nicknames');
+  'id,title,lock_at,scheduled_at,status,red_nickname,blue_nickname,red_weight_kg,blue_weight_kg,is_main_event',
+  'public_next_fight returns only id/title/times/status/nicknames/weights/main-event flag');
 
 -- ===========================================================================
 -- 4. Admin setup: fighters + fights
 -- ===========================================================================
 select tests.login('a1');
 set local role authenticated;
-select set_config('t.fr', public.admin_upsert_fighter(null, 'Test Red', 80.5, 'Red!', null, false)::text, true);
-select set_config('t.fb', public.admin_upsert_fighter(null, 'Test Blue', 79, 'Blue!', null, false)::text, true);
-select set_config('t.f3', public.admin_upsert_fighter(null, 'Test Three', null, null, null, false)::text, true);
-select set_config('t.f4', public.admin_upsert_fighter(null, 'Test Four', null, null, null, false)::text, true);
-select set_config('t.f6', public.admin_upsert_fighter(null, 'Admin Fighter', null, null, null, false)::text, true);
-select set_config('t.fh', public.admin_upsert_fighter(null, 'Secret Hidden', null, null, null, true)::text, true);
-select throws_ok($$ select public.admin_upsert_fighter(null, 'Test Red', null, null, null, false) $$,
+select set_config('t.fr', public.admin_upsert_fighter(null, 'TQ Red', 80.5, 'Red!', null, false)::text, true);
+select set_config('t.fb', public.admin_upsert_fighter(null, 'TQ Blue', 79, 'Blue!', null, false)::text, true);
+select set_config('t.f3', public.admin_upsert_fighter(null, 'TQ Three', null, null, null, false)::text, true);
+select set_config('t.f4', public.admin_upsert_fighter(null, 'TQ Four', null, null, null, false)::text, true);
+select set_config('t.f6', public.admin_upsert_fighter(null, 'TQ Admin Fighter', null, null, null, false)::text, true);
+select set_config('t.fh', public.admin_upsert_fighter(null, 'TQ Secret Hidden', null, null, null, true)::text, true);
+select throws_ok($$ select public.admin_upsert_fighter(null, 'TQ Red', null, null, null, false) $$,
                  null, 'NICKNAME_TAKEN', 'duplicate nickname rejected');
-select lives_ok($$ select public.admin_upsert_fighter(tests.g('f3'), 'Test Three', 70.0, 'Three!',
+select lives_ok($$ select public.admin_upsert_fighter(tests.g('f3'), 'TQ Three', 70.0, 'Three!',
                    'fighters/' || tests.g('f3') || '/' || gen_random_uuid() || '.webp', false) $$,
                 'admin updates fighter with photo path');
-select throws_ok($$ select public.admin_upsert_fighter(tests.g('f3'), 'Test Three', null, null, '../etc/passwd', false) $$,
+select throws_ok($$ select public.admin_upsert_fighter(tests.g('f3'), 'TQ Three', null, null, '../etc/passwd', false) $$,
                  null, 'INVALID_PHOTO_PATH', 'bad photo path rejected');
 
 select lives_ok($$ select public.admin_set_member(tests.uid('p1'), true, 'member', tests.g('fr')) $$,
@@ -224,7 +190,22 @@ select set_config('t.fight6', public.admin_create_fight(tests.g('f6'), tests.g('
 select set_config('t.fight7', public.admin_create_fight(tests.g('f3'), tests.g('f4'),
   now() + interval '1 hour', now() - interval '1 minute', 'Past lock')::text, true);
 
-select is((select status from public.fights where id = tests.g('fight1')), 'open', 'new fight is open');
+select is((select status from public.fights where id = tests.g('fight1')), 'scheduled', 'new fight is scheduled (awaiting consent)');
+-- B2: force open is only for corners without an active app account.
+select throws_ok($$ select public.admin_force_open(tests.g('fight1'), 'skip p1 consent') $$,
+                 null, 'FIGHTER_HAS_ACCOUNT', 'cannot force open over a linked fighter who has not accepted');
+select is((select status from public.fights where id = tests.g('fight1')), 'scheduled', 'refused force open leaves fight scheduled');
+-- linked corners accept; the unlinked corners are then force-opened
+select tests.login('p1');
+select public.accept_fight(id) from public.fights where id in (tests.g('fight1'), tests.g('fight3'));
+select tests.login('a2');
+select public.accept_fight(tests.g('fight6'));
+select tests.login('a1');
+select lives_ok($$ select public.admin_force_open(id, 'No app accounts for fighters') from public.fights
+                    where id in (tests.g('fight1'), tests.g('fight2'), tests.g('fight3'), tests.g('fight4'),
+                                 tests.g('fight5'), tests.g('fight6'), tests.g('fight7')) $$,
+                'admin force-opens the test fights');
+select is((select status from public.fights where id = tests.g('fight1')), 'open', 'force-opened fight is open');
 select is((select count(*)::int from public.fight_pools where fight_id = tests.g('fight1')), 1, 'fight_pools row created');
 reset role;
 
@@ -234,7 +215,6 @@ reset role;
 select tests.login('u1');
 set local role authenticated;
 select ok((select count(*) from public.profiles) >= 9, 'members can see profiles');
-select is((select count(*)::int from public.invites), 0, 'members cannot see invites');
 select is((select count(*)::int from public.fighters where id = tests.g('fh')), 0, 'members cannot see hidden fighter');
 select is((select count(*)::int from public.fighter_rankings where fighter_id = tests.g('fh')), 0, 'hidden fighter not ranked');
 select ok((select count(*) from public.fights where id = tests.g('fight1')) = 1, 'members can see fights');
@@ -255,7 +235,6 @@ reset role;
 
 select tests.login('a1');
 set local role authenticated;
-select ok((select count(*) from public.invites) >= 5, 'admin sees invites');
 select ok((select count(*) from public.fighters where id = tests.g('fh')) = 1, 'admin sees hidden fighter');
 select ok((select count(distinct user_id) from public.points_ledger) >= 9, 'admin sees all ledger rows');
 reset role;
@@ -406,11 +385,15 @@ set local role authenticated;
 select throws_ok($$ select public.admin_upsert_fighter(null, 'X', null, null, null, false) $$, null, 'NOT_ADMIN', 'member: upsert_fighter');
 select throws_ok($$ select public.admin_create_fight(tests.g('f3'), tests.g('f4'), now(), now(), null) $$, null, 'NOT_ADMIN', 'member: create_fight');
 select throws_ok($$ select public.admin_lock_fight(tests.g('fight1')) $$, null, 'NOT_ADMIN', 'member: lock_fight');
-select throws_ok($$ select public.admin_settle_fight(tests.g('fight1'), 'red', 'pin', null) $$, null, 'NOT_ADMIN', 'member: settle_fight');
+select throws_ok($$ select public.admin_settle_fight(tests.g('fight1'), 'red', 'pin', null, 1, 1, 0) $$, null, 'NOT_ADMIN', 'member: settle_fight');
 select throws_ok($$ select public.admin_cancel_fight(tests.g('fight1'), 'x') $$, null, 'NOT_ADMIN', 'member: cancel_fight');
-select throws_ok($$ select public.admin_create_invite(1, null) $$, null, 'NOT_ADMIN', 'member: create_invite');
-select throws_ok($$ select public.admin_revoke_invite('TESTINV1') $$, null, 'NOT_ADMIN', 'member: revoke_invite');
+select throws_ok($$ select public.admin_correct_result(tests.g('fight1'), 'because') $$, null, 'NOT_ADMIN', 'member: correct_result');
+select throws_ok($$ select public.admin_force_open(tests.g('fight1'), 'because') $$, null, 'NOT_ADMIN', 'member: force_open');
+select throws_ok($$ select public.admin_reorder_card(current_date, array[tests.g('fight1')]) $$, null, 'NOT_ADMIN', 'member: reorder_card');
+select throws_ok($$ select public.admin_set_main_event(tests.g('fight1')) $$, null, 'NOT_ADMIN', 'member: set_main_event');
 select throws_ok($$ select public.admin_set_member(tests.uid('u1'), true, 'admin', null) $$, null, 'NOT_ADMIN', 'member: set_member (self-promote)');
+select throws_ok($$ select public.admin_set_member(tests.uid('u1'), null, null, null, 'New Name') $$, null, 'NOT_ADMIN', 'member: cannot rename self via set_member');
+select throws_ok($$ update public.profiles set display_name = 'Hacked' where id = tests.uid('u1') $$, '42501', null, 'member cannot edit own display_name directly');
 select throws_ok($$ select public.admin_adjust_points(tests.uid('u1'), 1000, 'x') $$, null, 'NOT_ADMIN', 'member: adjust_points');
 reset role;
 
@@ -441,8 +424,8 @@ reset role;
 -- U1 floor(124.67)=124 (+1 dust, largest) = 125; U2 floor(62.33)=62; U3 lost.
 select tests.login('a1');
 set local role authenticated;
-select is((public.admin_settle_fight(tests.g('fight1'), 'red', 'pin', 'Clean pin') ->> 'dust')::int, 1, 'settle returns dust 1');
-select throws_ok($$ select public.admin_settle_fight(tests.g('fight1'), 'blue', 'pin', null) $$, null, 'ALREADY_SETTLED',
+select is((public.admin_settle_fight(tests.g('fight1'), 'red', 'pin', 'Clean pin', 2, 4, 1, 'half nelson') ->> 'dust')::int, 1, 'settle returns dust 1');
+select throws_ok($$ select public.admin_settle_fight(tests.g('fight1'), 'blue', 'pin', null, 1, 0, 1) $$, null, 'ALREADY_SETTLED',
                  'second settle rejected (idempotent)');
 reset role;
 
@@ -479,7 +462,7 @@ reset role;
 update public.bets set created_at = now() - interval '1 hour' where id = tests.g('b_u2_f3');
 
 select tests.login('a1'); set local role authenticated;
-select lives_ok($$ select public.admin_settle_fight(tests.g('fight3'), 'red', 'decision', null) $$, 'settle open fight (auto-lock) works');
+select lives_ok($$ select public.admin_settle_fight(tests.g('fight3'), 'red', 'decision', null, 3, 6, 3) $$, 'settle open fight (auto-lock) works');
 reset role;
 select results_eq($$ select payout from public.bets where id = tests.g('b_u2_f3') $$, $$ values (36) $$, 'tie: earliest bet gets dust');
 select results_eq($$ select payout from public.bets where id = tests.g('b_u1_f3') $$, $$ values (35) $$, 'tie: later bet floor only');
@@ -495,7 +478,7 @@ select set_config('t.b_u1_f4', public.place_bet(tests.g('fight4'), 'blue', 20)::
 reset role;
 select set_config('t.u3_before_f4', (tests.bal('u3') + 481)::text, true);
 select tests.login('a1'); set local role authenticated;
-select is((public.admin_settle_fight(tests.g('fight4'), 'red', 'submission', null) ->> 'refunded')::int, 2,
+select is((public.admin_settle_fight(tests.g('fight4'), 'red', 'submission', null, 1, 0, 2) ->> 'refunded')::int, 2,
           'zero winning pool: everyone refunded');
 reset role;
 select is((select count(*)::int from public.bets where fight_id = tests.g('fight4') and status = 'refunded'), 2, 'bets marked refunded');
@@ -506,10 +489,10 @@ select is((select count(*)::int from public.points_ledger where reason = 'refund
 -- admin restrictions on settle
 select tests.login('a2'); set local role authenticated;
 select throws_ok($$ select public.place_bet(tests.g('fight6'), 'red', 10) $$, null, 'PARTICIPANT', 'admin cannot bet on own fight');
-select throws_ok($$ select public.admin_settle_fight(tests.g('fight6'), 'red', 'pin', null) $$, null, 'PARTICIPANT',
+select throws_ok($$ select public.admin_settle_fight(tests.g('fight6'), 'red', 'pin', null, 1, 1, 0) $$, null, 'PARTICIPANT',
                  'admin cannot record own fight');
 select public.place_bet(tests.g('fight5'), 'red', 10);
-select throws_ok($$ select public.admin_settle_fight(tests.g('fight5'), 'red', 'pin', null) $$, null, 'ADMIN_HAS_BET',
+select throws_ok($$ select public.admin_settle_fight(tests.g('fight5'), 'red', 'pin', null, 1, 1, 0) $$, null, 'ADMIN_HAS_BET',
                  'admin with a bet cannot settle that fight');
 reset role;
 
@@ -544,10 +527,11 @@ select isnt((select status from public.fights where id = tests.g('fight6')), 'ca
 select tests.login('a1'); set local role authenticated;
 select lives_ok($$ select public.admin_cancel_fight(tests.g('fight5'), 'Fire alarm') $$, 'other admin cancels locked fight');
 select throws_ok($$ select public.admin_cancel_fight(tests.g('fight5'), 'again') $$, null, 'FIGHT_CANCELLED', 'cannot cancel twice');
-select throws_ok($$ select public.admin_settle_fight(tests.g('fight5'), 'red', 'pin', null) $$, null, 'FIGHT_CANCELLED', 'cannot settle cancelled');
+select throws_ok($$ select public.admin_settle_fight(tests.g('fight5'), 'red', 'pin', null, 1, 1, 0) $$, null, 'FIGHT_CANCELLED', 'cannot settle cancelled');
 select throws_ok($$ select public.admin_cancel_fight(tests.g('fight1'), 'late') $$, null, 'ALREADY_SETTLED', 'cannot cancel settled');
 reset role;
 select is((select status from public.fights where id = tests.g('fight5')), 'cancelled', 'fight cancelled');
+select is((select cancel_kind from public.fights where id = tests.g('fight5')), 'cancelled', 'cancel_kind defaults to cancelled');
 select is((select count(*)::int from public.bets where fight_id = tests.g('fight5') and status = 'refunded'), 2, 'all active bets refunded');
 select is(tests.bal('u1'), current_setting('t.u1_before_f5')::int, 'u1 refunded on cancel');
 select is((select wins::text from public.fighters where id = tests.g('f3')), current_setting('t.f3_wins'), 'no record change on cancel');
@@ -568,36 +552,15 @@ select is((select count(*)::int from public.reactions where fight_id = tests.g('
 reset role;
 
 -- ===========================================================================
--- 15. Invites + members admin
+-- 15. Members admin
 -- ===========================================================================
-select tests.login('a1'); set local role authenticated;
-select set_config('t.code', public.admin_create_invite(3, now() + interval '7 days'), true);
-select matches(current_setting('t.code'), '^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$', 'invite code: 8 chars, no ambiguous chars');
-select lives_ok($$ select public.admin_revoke_invite(current_setting('t.code')) $$, 'admin revokes invite');
-select throws_ok($$ select public.admin_revoke_invite('NOSUCHCODE') $$, null, 'INVITE_NOT_FOUND', 'revoke unknown invite');
-reset role;
-select is(tests.hook('newbie', current_setting('t.code')) -> 'error' ->> 'message', 'INVALID_INVITE', 'revoked invite rejected by hook');
-reset role;
-select ok((select count(*) from public.admin_log where action in ('invite_create', 'invite_revoke')) >= 2, 'invite actions logged');
-
--- Finding: invite codes must not leak to members through admin_log.
-select is_empty($$ select id from public.admin_log
-                    where action like 'invite%' and (details ? 'code' or details::text like '%' || current_setting('t.code') || '%') $$,
-                'admin_log never stores the plaintext invite code');
-select is((select details ->> 'code_hint' from public.admin_log where action = 'invite_create' order by id desc limit 1),
-          left(current_setting('t.code'), 2) || '******', 'invite log stores a masked hint');
-select tests.login('a1'); set local role authenticated;
-select set_config('t.code2', public.admin_create_invite(5, null), true);
-select ok((select count(*) from public.admin_log where action like 'invite%') >= 3, 'admins still see invite log rows');
-reset role;
 select tests.login('u1'); set local role authenticated;
-select is((select count(*)::int from public.admin_log where action like 'invite%'), 0, 'members cannot see invite log rows');
-select is((select count(*)::int from public.admin_log where details::text like '%' || current_setting('t.code2') || '%'), 0,
-          'members cannot find a live invite code anywhere in admin_log');
-select ok((select count(*) from public.admin_log where action = 'fight_settle') >= 1, 'members still see other log rows');
+select ok((select count(*) from public.admin_log where action = 'fight_settle') >= 1, 'members see admin_log rows');
 reset role;
 
--- last admin protection
+-- last admin protection (other admins may exist in the DB: demote them inside this txn)
+update public.profiles set role = 'member'
+ where role = 'admin' and id not in (tests.uid('a1'), tests.uid('a2'));
 select tests.login('a2'); set local role authenticated;
 select lives_ok($$ select public.admin_set_member(tests.uid('a2'), true, 'member', tests.g('f6')) $$, 'a2 demotes self (a1 remains)');
 reset role;
@@ -609,8 +572,9 @@ reset role;
 -- ===========================================================================
 -- 16. Weekly points cron body
 -- ===========================================================================
--- simulate a negative balance so the top-up path is exercised
-insert into public.points_ledger (user_id, delta, reason, note) values (tests.uid('broke'), -1200, 'admin_adjust', 'test');
+-- simulate a balance of -95 so the bonus leaves 5 and the top-up path is exercised
+-- (a deeper debt is NOT topped up: see wave_a_test section 11)
+insert into public.points_ledger (user_id, delta, reason, note) values (tests.uid('broke'), -95 - tests.bal('broke'), 'admin_adjust', 'test');
 select set_config('t.u2_before_weekly', tests.bal('u2')::text, true);
 select ok(private.weekly_points() >= 9, 'weekly bonus granted to active members');
 select is(tests.bal('u2'), current_setting('t.u2_before_weekly')::int + 100, 'weekly +100');

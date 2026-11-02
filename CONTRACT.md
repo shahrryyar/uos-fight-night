@@ -124,3 +124,109 @@ Share poster: `src/lib/poster.ts` (landing agent) — canvas 1080x1350 VS poster
 
 ## Design
 Dark UFC fight-poster. Tokens in `src/index.css`: bg near-black `#0b0b0d`, surface `#16161a`, red `#d7192a`, gold `#e3b341`, blue corner `#2a6fdb`, text `#f4f1ea`, muted `#9a968e`. Fonts: "Bebas Neue" display (Google Fonts), "Inter" body. Big VS layouts, red vs blue corners, gold accents. Mobile-first (390px), tap targets ≥44px. No real money words ("$", "cash", "money", "wager") anywhere; say "points", "fun points — no cash value".
+
+
+
+
+---
+# ADDENDA (2026-11-02) — these SUPERSEDE the base contract wherever they conflict.
+Wave scoping: WAVE A = Addendum A (match stats) + C0 (admin-created accounts) + B1 (correct/undo, minus belt/badge reversal) + B2 (consent/injury) + B3 (bout order).
+WAVE B = B4-B8 (+ extend B1 to reverse belt & badges). WAVE C = C1-C7.
+Invite-based signup from the base contract is REMOVED by C0.
+
+## ADDENDUM A — Match stats (binding, appended to CONTRACT.md)
+
+User request: profiles, current matches and previous matches must show each player's kg, rounds played, match score points, and how they lost.
+
+### Schema (new migration, after existing ones)
+fights add columns:
+- `red_weight_kg numeric(5,1) null`, `blue_weight_kg numeric(5,1) null` — weight snapshot for that match. Set at create from fighters.weight_kg (or override param). Editable at settle.
+- `rounds int null check (rounds between 1 and 20)` — rounds fought. Required at settle.
+- `red_score int null check (red_score >= 0)`, `blue_score int null check (blue_score >= 0)` — match score points. Required at settle. (Winner by pin/submission may have lower score — allowed. For method='decision' winner score must be > loser score, else raise 'SCORE_MISMATCH'.)
+- `finish_move text null check (char_length(finish_move) <= 60)` — e.g. "half nelson", "headlock". Optional.
+- existing `result_note` = optional referee note (≤200 chars).
+
+### RPC changes (replace signatures; drop old overloads)
+- `admin_create_fight(p_red uuid, p_blue uuid, p_scheduled_at timestamptz, p_lock_at timestamptz, p_title text, p_red_weight_kg numeric default null, p_blue_weight_kg numeric default null) returns uuid` — null weight → snapshot fighters.weight_kg.
+- `admin_settle_fight(p_fight_id uuid, p_winner_side text, p_method text, p_note text, p_rounds int, p_red_score int, p_blue_score int, p_finish_move text default null, p_red_weight_kg numeric default null, p_blue_weight_kg numeric default null) returns jsonb` — non-null weight params overwrite snapshot. All other settle rules unchanged.
+- `public_next_fight()` also returns `red_weight_kg, blue_weight_kg` (numbers only, still no photos).
+
+### Views
+- `fighter_rankings` add: `total_rounds int`, `points_for int`, `points_against int`, `losses_pin int`, `losses_submission int`, `losses_decision int`, `wins_pin int`, `wins_submission int`, `wins_decision int` (over settled fights).
+- New view `fight_results` (security_invoker): one row per settled fight per fighter perspective: `fight_id, fighter_id, opponent_id, side, result ('W'|'L'), method, finish_move, rounds, score_for, score_against, weight_kg, opponent_weight_kg, elo_delta (signed for that fighter), settled_at, result_note`. Used by profile last-5, head-to-head, history.
+
+### UI
+- Fight card (VsCard): under each nickname show `72.5 kg` (snapshot, fallback current). After settle: big score `6 – 3`, `3 rounds`, `WIN by PIN (half nelson)` on winner, loser side shows `Lost by pin`. Note in small text.
+- Fighter profile: current kg, total rounds, points for/against, W/L breakdown by method ("Losses: 2 pin · 1 submission · 0 decision"), last 5 rows: W/L, vs opponent (their kg), score, rounds, method + move, date. Head-to-head shows the same rows filtered.
+- Fighters grid: kg on each card.
+- History: score, rounds, both kgs, method + move, loser "lost by …".
+- Leaderboard fighters tab: add kg and rounds columns (compact).
+- Admin settle form: rounds (stepper, default 1), red score / blue score (number), method, finish move (text with suggestions: half nelson, headlock, cradle, arm bar, rear naked choke, body lock), weights prefilled from snapshot (editable), referee note. Admin create fight: weights prefilled from fighters, editable.
+- Landing: show kg under nicknames.
+- poster.ts: optional `redKg`, `blueKg` in opts → drawn under names.
+
+
+## ADDENDUM B — Extra features chosen by user 2026-11-02 (binding, append to CONTRACT.md)
+
+### B1. Correct / undo result (PRE-DEPLOY, wave A)
+- `admin_correct_result(p_fight_id uuid, p_reason text) returns jsonb` — only for status 'settled'. Atomically reverses: payouts (ledger reason 'refund' negative of payout? NO — use new ledger reasons 'payout_reversal' (−payout) and restore stakes to active bets), W/L/streak/Elo for both fighters (restore from red_elo_before/blue_elo_before; recompute streak from fight_results history), belt changes (B5), badges awarded by that fight (B6). Sets fight status back to 'locked', clears result columns. Logs admin_log with reason (required, ≥5 chars). Then admin re-settles normally. Must refuse if a LATER settled fight involves either fighter (raise 'LATER_FIGHT_EXISTS' — correct newest first) to keep Elo/streak chain valid.
+- Add 'payout_reversal' to points_ledger reason check. A user may go negative after reversal — allowed (shown as debt; can't bet until ≥ MIN_BET).
+- UI: admin Fights tab → settled fight → "Correct result" with reason; confirm dialog explains reversal.
+
+### B2. Fight consent + injury stop (PRE-DEPLOY, wave A)
+- fights add `red_accepted_at timestamptz null`, `blue_accepted_at timestamptz null`. New fights created with status 'scheduled' (not 'open'). Fight auto-transitions to 'open' when both accepted (or admin `admin_force_open(p_fight_id, p_reason)` for fighters without app accounts — logged). Voting/betting only when 'open'.
+- `accept_fight(p_fight_id uuid) returns void` — caller's profiles.fighter_id must be red or blue participant; sets corresponding accepted_at. `decline_fight(p_fight_id uuid)` → fight cancelled (refunds none needed since not open) with log.
+- Injury stop: `admin_no_contest(p_fight_id uuid, p_reason text)` from open/locked → status 'cancelled' with `cancel_kind = 'no_contest'` (new column `cancel_kind text check in ('cancelled','no_contest','declined')`), refunds all bets, no record change. (Can reuse admin_cancel_fight with kind param.)
+- UI: fighter sees "You're booked: Accept / Decline" banner on FightCard; card shows "Waiting for fighters to accept ✅/⏳". Rules box text: tap = stop, referee's call final, no strikes, 18+, opt-in.
+
+### B3. Bout order / main event (PRE-DEPLOY, wave A)
+- fights add `bout_order int not null default 1`, `is_main_event boolean not null default false`, `card_date date not null` (Asia/Baghdad date of scheduled_at; set by RPC). At most one main event per card_date (partial unique index).
+- admin_create_fight gains `p_bout_order int default null` (null → next number for that card_date), `p_main_event boolean default false`. `admin_reorder_card(p_card_date date, p_fight_ids uuid[])` sets order; `admin_set_main_event(p_fight_id)`.
+- UI: FightCard groups by card_date, sorted bout_order; main event last & visually biggest ("MAIN EVENT" gold banner). Landing shows the main event (or first open fight) as NEXT UP.
+
+### B4. Referee live scoring (wave B, after first deploy)
+- Table `live_scores(fight_id pk refs fights, round int not null default 1, red_score int default 0, blue_score int default 0, round_started_at timestamptz null, round_seconds int not null default 120, running boolean default false, updated_at timestamptz default now(), updated_by uuid)`. Members select; realtime-enabled. Writes via `admin_live_update(p_fight_id, p_action text, p_value int)` actions: 'start','pause','next_round','red_add','blue_add','set_round_seconds','reset'. Only admins (or role 'referee' — keep admin only for now) not participants. Only when fight status 'locked'.
+- Referee screen `/admin/ref/:fightId`: huge buttons +1/+2/−1 per corner, round timer with start/pause/next, keeps screen awake (navigator.wakeLock), "Finish → Settle" pre-fills rounds & scores in settle form.
+- Members: FightCard shows LIVE score + round + timer when live_scores row running/updated in last 10 min.
+
+### B5. Title belt (wave B)
+- Table `belt_reigns(id uuid pk, fighter_id refs fighters, won_fight_id uuid null refs fights, lost_fight_id uuid null refs fights, started_at timestamptz, ended_at timestamptz null)`. Current champion = reign with ended_at null. Admin `admin_award_belt(p_fighter_id, p_note)` for the first champ (or vacate). Fights get `is_title_fight boolean default false` (set at create; requires current champ as participant). On settle of a title fight where champ loses → end reign, start new reign for winner. (Non-title loss doesn't move belt — user said "loses belt by losing a fight": treat ANY loss by the champ as belt change? Decide: ANY settled loss by champion transfers belt to the winner. Simpler and matches user wording. So is_title_fight is just a display flag = auto true when champ fights.)
+- Undo (B1) must restore belt.
+- UI: 👑 belt icon next to champ everywhere; profile shows reigns; Leaderboard header "CURRENT CHAMPION" card; landing shows champ nickname.
+
+### B6. Badges (wave B)
+- Table `badges(fighter_or_user ...)` → split: `fighter_badges(fighter_id, code, fight_id null, awarded_at, primary key(fighter_id, code, fight_id))` and `user_badges(user_id, code, fight_id null, awarded_at)`. Awarded inside settle (and reversed by B1).
+- Fighter codes: `first_win`, `streak_3`, `streak_5`, `upset` (won with elo_before ≥100 lower), `iron_man` (10 fights), `shutout` (won with opponent score 0), `belt_holder`.
+- User codes: `sharp_eye` (correct vote 5 fights in a row), `high_roller` (won a bet ≥400), `perfect_night` (correct vote on every fight of a card_date with ≥2 fights), `comeback` (balance from <50 to ≥1000).
+- UI: badge chips with emoji + tooltip on profile & Me page.
+
+### B7. Semester reset (wave B)
+- Table `seasons(id serial pk, name text, started_at, ended_at null, champion_fighter_id null, top_bettor_user_id null, snapshot jsonb)`. `admin_end_season(p_name_next text)`: snapshot rankings & balances into seasons.snapshot, set champion = current belt holder (else top Elo), top bettor; then reset points: ledger 'season_reset' entry bringing each balance to 1000; reset fighters.elo to 1000 and season W/L counters (add `season_wins`, `season_losses` columns? Keep all-time wins/losses; add season_* columns used by leaderboard). Logged. Requires confirm text "END SEASON".
+- UI: Leaderboard "Season" vs "All-time" toggle; History of seasons with champions.
+
+### B8. Visitor stats (wave B)
+- Cloudflare Web Analytics: user must enable in Cloudflare dashboard (Pages project → Metrics → Web Analytics → enable) — automatic injection for Pages, no code, no cookies. Document in README; nothing to build. If token-based snippet needed, add to index.html.
+
+
+## ADDENDUM C — decided by user 2026-11-02 (binding, append to CONTRACT.md)
+
+### C0. LOGIN MODEL CHANGE — admin-created accounts (PRE-DEPLOY, wave A — supersedes invite signup)
+User: "admin decides the nickname of users which will appear on screens. They just log in to their account." + "let admin be able to make the account themselves for second admin".
+- Public self-signup DISABLED: supabase/config.toml `[auth] enable_signup = false`. Remove /join route & Join page (redirect /join → /login). Invites table + invite RPCs + before_user_created hook: remove (or leave hook disabled & drop invites) — keep it clean; nothing should accept signups.
+- Edge Function `admin-create-user` (service role; verify caller JWT → active admin): body `{ username, display_name, password, role: 'member'|'admin', fighter_id?: uuid|null }`. Validates username `[a-z0-9_]{3,20}` unique, display_name 1-24 chars, password ≥8. Creates auth user with synthetic email `${username}@members.uosfight.local`, email_confirm: true, then the `handle_new_user` trigger creates profile (username from user_metadata) + 1000 signup points; function then sets display_name/role/fighter_id via service role and writes admin_log. Returns `{ user_id, username }`.
+- `display_name` is REQUIRED (not null) and is the name shown on every screen (leaderboards, bets lists, admin log, header). Members can NOT change display_name or username (remove any self-edit RPC). Admin edits display_name via `admin_set_member(... p_display_name text ...)` (extend signature).
+- Admin can delete/deactivate accounts (`active=false`); edge function `admin-reset-password` stays.
+- Login page: username + password only; footer "No account? Ask an admin." Landing CTA "Got your login? Enter" → /login (no Join).
+- Bootstrap first admin: no signup exists → README + pipeline step: create first admin via `supabase` service-role call (curl auth admin API with secret key from `supabase projects api-keys`, run locally, never committed) then set role='admin'. Print username + temp password to user ONCE; tell them to change it.
+- Admin UI Members tab: "Create account" form (username, display name shown on screens, temp password generator + copy, role, link fighter), list with edit display_name/role/active/fighter, reset password.
+
+### Wave C (after first deploy)
+- C1. Panic button / lockdown: table `site_settings(id int pk default 1 check(id=1), lockdown boolean default false, lockdown_message text, updated_at, updated_by)`. anon+members read via `public_site_status()` RPC (anon-executable, returns lockdown + message only). When lockdown: landing shows only a neutral "Maintenance" page (no league name in visible copy, generic title); app for non-admins shows maintenance; public_next_fight returns nothing; members' data RPCs/RLS still work for admins only (add `and not lockdown` to is_member() for non-admins). Admin toggle `admin_set_lockdown(p_on boolean, p_message text)` with big red button + confirm. Logged.
+- C2. Referee role: profiles.role check add 'referee'. Referee may use B4 live scoring RPC + referee screen; cannot settle/cancel/manage. Admin can assign via admin_set_member / create-user.
+- C3. Results recap poster: `src/lib/poster.ts` `renderRecap({ cardDate, fights:[{red,blue,winner,method,move,score,rounds,kg, title?}], champion?, fightOfNight? })` 1080x1350 (or taller if >4 fights, 1080x1920), share via same sharePoster flow. Button on FightCard after all fights of the card settled, and in History per card_date.
+- C4. Fight of the Night: after all fights of a card_date settled, members vote 24h window: table `fotn_votes(card_date date, user_id, fight_id, primary key(card_date,user_id))`; `cast_fotn_vote(p_fight_id)`; winner computed after window (cron or on read) → both fighters get fighter badge `fight_of_the_night`. Results visible after window closes.
+- C5. Callouts / rematches: table `callouts(id uuid pk, challenger_fighter_id, target_fighter_id, message text ≤140 (preset-ish, no free-text abuse? allow ≤140 with nickname-filter-free; admin can delete), status ('pending','accepted','declined','approved','rejected','booked'), created_by user, created_at)`. Fighter (linked profile) creates callout; target fighter accepts/declines; admin approves → prefilled create-fight form; booked links fight id. "Rematch" button on settled fight for the loser → callout prefilled. Members see public callout board.
+- C6. Points shop (cosmetics, fun points, no cash): table `shop_items(code pk, kind ('name_color','frame','title'), label, value text, price int, active)`, `user_items(user_id, code, purchased_at, equipped boolean)`. `buy_item(p_code)` deducts via ledger reason 'shop' (add to check); `equip_item(p_code)`. Seed items: name colors (gold 300, crimson 200, ice blue 200, neon green 250), frames (flame 400, chain 350, crown 800), titles (admin-approved custom title request 500 → `title_requests` table admin approves text; plus preset titles "The Butcher" 300, "Iron Grip" 300, "Mat Rat" 150). Display name rendered with equipped color/frame/title everywhere (component `<MemberName userId/>`). Copy: "Fun points — no cash value. Items are cosmetic."
+- C7. Hall of Fame page `/app/hall-of-fame`: past champions & reigns (B5), season champions (B7), records: longest win streak, most wins, most rounds, biggest upset (largest elo gap win), most Fight of the Night, top bettor peak balance. Computed by SQL view/RPC `hall_of_fame()`.
+
+Declined by user (do NOT build): backup/export, rules & privacy page, nickname filter, weight-gap warning, pick-accuracy board, self-delete account, matchmaking hint, deeper stats, invite QR.

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useCallback, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { friendlyError } from '../../lib/supabase'
 
 /* ---------- layout ---------- */
@@ -16,12 +16,30 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
   )
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+/**
+ * Captioned form field. Default wraps a single input/select in a <label>.
+ * Pass `group` when the field holds buttons (toggles, segmented choices, steppers): a <label>
+ * would forward caption taps to its first button and fold the caption into each button's name,
+ * so groups render as <div role="group" aria-labelledby> instead.
+ */
+export function Field({ label, hint, group, children }: { label: string; hint?: ReactNode; group?: boolean; children: ReactNode }) {
+  const id = useId()
+  const caption = 'block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5'
+  const hintEl = hint && <span className="block text-xs text-muted mt-1">{hint}</span>
+  if (group) {
+    return (
+      <div className="block" role="group" aria-labelledby={`${id}-cap`}>
+        <span id={`${id}-cap`} className={caption}>{label}</span>
+        {children}
+        {hintEl}
+      </div>
+    )
+  }
   return (
     <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">{label}</span>
+      <span className={caption}>{label}</span>
       {children}
-      {hint && <span className="block text-xs text-muted mt-1">{hint}</span>}
+      {hintEl}
     </label>
   )
 }
@@ -159,4 +177,63 @@ export function fromLocalInput(v: string): string | null {
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+/** Asia/Baghdad calendar date (YYYY-MM-DD) of an ISO timestamp — mirrors fights.card_date. */
+export function cardDateOf(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+}
+
+export function fmtCardDate(d: string): string {
+  const [y, m, day] = d.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, day, 12)).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+/** 10-char password from an unambiguous alphabet, crypto-random. */
+export function generatePassword(len = 10): string {
+  const abc = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  const out: string[] = []
+  const buf = new Uint32Array(len * 2)
+  const limit = Math.floor(0x1_0000_0000 / abc.length) * abc.length
+  while (out.length < len) {
+    crypto.getRandomValues(buf)
+    for (const n of buf) {
+      if (n < limit) out.push(abc[n % abc.length])
+      if (out.length === len) break
+    }
+  }
+  return out.join('')
+}
+
+/** Pull a readable message (often an error code) out of a FunctionsHttpError response body. */
+export async function functionError(err: unknown): Promise<Error> {
+  const ctx = (err as { context?: Response })?.context
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.clone().json() as { error?: string; message?: string; code?: string }
+      const m = body?.code ?? body?.error ?? body?.message
+      if (m) return new Error(body.error && body.code && body.error !== body.code ? `${body.code}: ${body.error}` : m)
+    } catch { /* not json */ }
+  }
+  return err instanceof Error ? err : new Error(String(err))
+}
+
+/** Parse a weight input ("72.5") → number | null. */
+export function parseKg(v: string): number | null {
+  const t = v.trim().replace(',', '.')
+  if (!t) return null
+  const n = Number(t)
+  return Number.isFinite(n) ? Math.round(n * 10) / 10 : NaN
+}
+
+/** − value + stepper with ≥44px targets. */
+export function Stepper({ value, min, max, onChange, label }: { value: number; min: number; max: number; onChange: (n: number) => void; label: string }) {
+  const btn = 'min-h-12 min-w-12 rounded-lg border border-line bg-surface-2 font-display text-2xl text-bone disabled:opacity-40'
+  return (
+    <div className="flex items-center gap-2" role="group" aria-label={label}>
+      <button type="button" className={btn} aria-label={`Fewer ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+      <output className="min-w-12 text-center font-display text-3xl tabular-nums" aria-live="polite">{value}</output>
+      <button type="button" className={btn} aria-label={`More ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+    </div>
+  )
 }

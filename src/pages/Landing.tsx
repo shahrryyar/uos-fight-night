@@ -20,7 +20,7 @@ const rules = [
   ['18+ only.', 'Every fighter and every member is an adult.'],
 ] as const
 
-const SHARE_TEXT = 'UoS Fight Night: dorm wrestling, real records, fun points. Got an invite? Pick your fighter.'
+const SHARE_TEXT = 'UoS Fight Night: dorm wrestling, real records, fun points. Members only. Pick your fighter.'
 
 function Cta({ to, children, variant }: { to: string; children: ReactNode; variant: 'primary' | 'ghost' }) {
   const base = 'flex min-h-14 items-center justify-center rounded-xl px-6 font-display text-2xl tracking-[0.12em] transition active:scale-[0.98]'
@@ -73,10 +73,7 @@ export default function Landing() {
             {session ? (
               <Cta to="/app" variant="primary">Enter the arena</Cta>
             ) : (
-              <>
-                <Cta to="/join" variant="primary">Got an invite? Join</Cta>
-                <Cta to="/login" variant="ghost">Log in</Cta>
-              </>
+              <Cta to="/login" variant="primary">Got your login? Enter</Cta>
             )}
           </div>
         </div>
@@ -125,7 +122,7 @@ export default function Landing() {
           <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-gold font-display text-xl text-gold">PTS</span>
           <div>
             <h2 className="font-display text-3xl leading-none tracking-wide">Fun points only</h2>
-            <p className="mt-1.5 text-sm text-muted">No cash value, nothing to buy or cash out. Points exist for bragging rights and nothing else.</p>
+            <p className="mt-1.5 text-sm text-muted">No cash value, nothing to buy. Points exist for bragging rights and nothing else.</p>
           </div>
         </section>
 
@@ -134,7 +131,7 @@ export default function Landing() {
           <div aria-hidden className="absolute inset-0 -z-0 bg-[linear-gradient(118deg,rgba(215,25,42,.35),transparent_45%,transparent_55%,rgba(42,111,219,.35))]" />
           <div className="relative">
             <h2 className="font-display text-5xl leading-none tracking-wide">Bring the <span className="text-gold">dorm</span></h2>
-            <p className="mx-auto mt-2 max-w-xs text-sm text-muted">It's invite-only. Share the page, and an admin hands out the codes.</p>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-muted">Members only. Share the page, and an admin sets up your login.</p>
             <ShareButton className="mt-5 w-full max-w-xs" title="UoS Fight Night" text={SHARE_TEXT} />
           </div>
         </section>
@@ -145,9 +142,7 @@ export default function Landing() {
         <p className="mt-1 text-xs text-muted">Private league · Members only · 18+ · Fun points, no cash value</p>
         {!session && (
           <p className="mt-4 text-sm">
-            <Link to="/join" className="inline-flex min-h-11 items-center px-3 font-semibold text-gold">Join with invite</Link>
-            <span className="text-line">|</span>
-            <Link to="/login" className="inline-flex min-h-11 items-center px-3 font-semibold text-bone/80">Log in</Link>
+            <Link to="/login" className="inline-flex min-h-11 items-center px-3 font-semibold text-gold">Got your login? Enter</Link>
           </p>
         )}
       </footer>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { friendlyError } from '../lib/supabase'
 import AuthShell from '../components/landing/AuthShell'
@@ -8,7 +8,7 @@ import { ErrorBox, SubmitButton, TextField } from '../components/landing/Field'
 /** Only allow same-app relative paths as redirect targets. */
 function safeFrom(state: unknown): string {
   const from = (state as { from?: unknown } | null)?.from
-  if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login') && !from.startsWith('/join')) return from
+  if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login')) return from
   return '/app'
 }
 
@@ -45,7 +45,7 @@ export default function Login() {
     <AuthShell
       kicker="Members only"
       title={<>Back in the <span className="text-red">ring</span></>}
-      footer={<>No account yet? <Link to="/join" className="inline-flex min-h-11 items-center px-1 font-semibold text-gold">Got an invite? Join</Link></>}
+      footer={<>No account? <span className="font-semibold text-gold">Ask an admin for your login.</span></>}
     >
       <title>Log in · UoS Fight Night</title>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>

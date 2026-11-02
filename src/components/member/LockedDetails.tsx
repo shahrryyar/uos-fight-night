@@ -46,7 +46,7 @@ export default function LockedDetails({ totals, bets, names, myId, redName, blue
               <li key={b.id} className={`flex items-center gap-2 px-3 py-2 text-sm ${b.user_id === myId ? 'bg-gold/10' : ''}`}>
                 <span className={`size-2.5 shrink-0 rounded-full ${b.side === 'red' ? 'bg-red' : 'bg-blue'}`} aria-hidden />
                 <span className="flex-1 truncate">
-                  @{names.get(b.user_id) ?? 'member'}{b.user_id === myId && <span className="text-gold"> (you)</span>}
+                  {names.get(b.user_id) ?? 'Member'}{b.user_id === myId && <span className="text-gold"> (you)</span>}
                   <span className="text-muted"> · {label(b.side)}</span>
                 </span>
                 <span className="tabular-nums font-semibold">{b.amount}</span>

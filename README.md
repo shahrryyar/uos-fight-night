@@ -1,10 +1,14 @@
 # UoS Fight Night
 
-A private, invite-only web app for a dorm wrestling league (about 10 to 20 fighters, under
-100 members, all 18+). Members get a fight card for each bout, vote for a corner, put fun
-points on a side, react with emoji, and follow fighter records, Elo rankings and a points
-leaderboard. Admins run the league: fighters and photos, fights (create, lock, settle,
-cancel), invites, members, point adjustments and an audit log.
+A private web app for a dorm wrestling league (about 10 to 20 fighters, under 100 members,
+all 18+). There is no public signup: admins create every account. Members get a fight card
+for each bout, vote for a corner, put fun points on a side, react with emoji, and follow
+fighter records, match stats, Elo rankings and a points leaderboard. Admins run the league:
+fighters and photos, fights (create, order the card, force open, lock, settle, correct a
+result, cancel or no contest), member accounts, point adjustments and an audit log.
+
+Fighters with an app account accept or decline each fight before it opens. Everyone is shown
+by their `display_name` (set by an admin), not their login username.
 
 The points are fun points with no cash value. Nothing can be bought, sold or cashed out.
 
@@ -13,37 +17,38 @@ The points are fun points with no cash value. Nothing can be bought, sold or cas
 - **Frontend:** Vite 8, React 19, TypeScript, Tailwind CSS v4, react-router-dom v7.
   The look is a dark fight poster: red corner against blue corner, gold accents, Bebas Neue
   headings. It is built for phones first (390px wide).
-- **Backend:** Supabase (Postgres with RLS, Auth, Storage, Realtime, pg_cron, one Edge
-  Function). All writes go through `security definer` RPCs. The browser never writes a table
+- **Backend:** Supabase (Postgres with RLS, Auth, Storage, Realtime, pg_cron, two Edge
+  Functions: `admin-create-user` and `admin-reset-password`). All writes go through `security definer` RPCs. The browser never writes a table
   directly. See [`supabase/README.md`](supabase/README.md) for the security model, RPCs,
   error codes and cron jobs.
 - **Hosting:** Cloudflare Pages (static `dist/`).
-- **Tests:** Vitest for the point and Elo math (`src/lib/math.test.ts`), and pgTAP for the
-  database (`supabase/tests/fight_night_test.sql`).
+- **Tests:** Vitest (`src/**/*.test.ts(x)`: point and Elo math, card order, admin tabs),
+  pgTAP for the database (`supabase/tests/*.sql`), and a curl script for auth and the Edge
+  Functions (`supabase/tests/http_auth_edge_test.sh`).
 
 ### Login
 
-Members log in with a username and password, and joining needs an invite code. There is no
-email and no Google sign-in. Behind the scenes each username maps to a placeholder email,
-`<username>@members.uosfight.local`, that never receives mail. The
-`hook_before_user_created` auth hook rejects any signup that lacks a valid invite or uses a
-bad or taken username. Using an invite approves the member, and they start with 1000
-points. Since there is no email, a forgotten password is reset by an admin, through the
+Members log in with a username and password. There is no email, no Google sign-in, no
+invite codes and no self-signup: `enable_signup = false` in `supabase/config.toml`, so
+`POST /auth/v1/signup` is rejected. An admin creates each account under **Admin → Members →
+Create account** (username, display name, temporary password, role, optional fighter link),
+which calls the `admin-create-user` Edge Function. Behind the scenes each username maps to a
+placeholder email, `<username>@members.uosfight.local`, that never receives mail. A new
+account starts with 1000 points. A forgotten password is reset by an admin, through the
 `admin-reset-password` Edge Function.
 
 ### Routes
 
 | Route | Who | What |
 |---|---|---|
-| `/` | public | Landing page: countdown to the next fight, matchup shown by nickname only (no photos), Join and Login buttons |
-| `/join?code=XXXX` | public | Sign up with an invite code |
-| `/login` | public | Username and password login |
+| `/` | public | Landing page: countdown to the next fight, matchup shown by nickname only (no photos), Login button |
+| `/login` | public | Username and password login (old `/join` links redirect here) |
 | `/app` | members | Tonight's fight card: vote, points pool, reactions, share poster |
-| `/app/fighters`, `/app/fighters/:id` | members | Fighter list and profiles (record, streak, Elo, last 5 fights, head-to-head) |
+| `/app/fighters`, `/app/fighters/:id` | members | Fighter list and profiles (record, streak, Elo, match stats, last 5 fights, head-to-head) |
 | `/app/leaderboard` | members | Elo rankings and points leaderboard |
 | `/app/history` | members | Past fights |
 | `/app/me` | members | Balance, bet history, points ledger, change password |
-| `/admin/*` | admins | Fighters, fights, invites, members, points, admin log |
+| `/admin/*` | admins | Fighters, fights (card order, main event), members (create accounts), points, admin log |
 
 ## Local development
 
@@ -69,21 +74,27 @@ Then:
 npm run dev             # http://localhost:5173
 ```
 
-The local seed creates the invite code `LOCALDEV`, four fighters and one open fight. To try
-it out:
+The local seed (`supabase/seed.sql`, local only) creates three accounts, four fighters and
+one card. Log in at `http://localhost:5173/login` with:
 
-1. Sign up at `http://localhost:5173/join?code=LOCALDEV`.
-2. Make yourself an admin in Studio (http://127.0.0.1:54323) or psql:
-   `update public.profiles set role = 'admin' where username = 'yourname';`
+| username | password | role |
+|---|---|---|
+| `admin` | `localadmin123` | admin |
+| `member1` | `localmember123` | member, linked to "The Hallway Hurricane" |
+| `member2` | `localmember123` | member, linked to "Mattress Mauler" |
+
+Create more accounts as `admin` under Admin → Members. That needs the Edge Functions running
+locally (`supabase functions serve`).
 
 Checks:
 
 ```bash
 npm run build           # tsc -b && vite build
-npx vitest run          # math unit tests
+npx vitest run          # unit tests
 npx oxlint src          # lint
 supabase test db        # pgTAP database tests (run after supabase db reset)
-supabase functions serve admin-reset-password   # optional: run the Edge Function locally
+supabase functions serve                      # serves admin-create-user + admin-reset-password
+bash supabase/tests/http_auth_edge_test.sh    # signup disabled + admin-create-user checks (needs functions serve)
 ```
 
 ## Deploy
@@ -94,26 +105,29 @@ supabase functions serve admin-reset-password   # optional: run the Edge Functio
 supabase login
 supabase link --project-ref <project-ref>
 supabase db push                                   # migrations only; seed.sql is NOT pushed
-supabase config push                               # auth settings + before_user_created hook
+supabase config push                               # auth settings: signup OFF, site_url, redirect URLs
+supabase functions deploy admin-create-user
 supabase functions deploy admin-reset-password
 ```
 
-Before running `config push`, open `supabase/config.toml` and set `[auth] site_url` to the
-production address (for example `https://uos-fight-night.pages.dev`). The file currently
-says `http://localhost:5173`, and `config push` copies that value to the live project.
+`supabase/config.toml` sets `[auth] site_url = "https://uos-fight-night.pages.dev"` and
+`enable_signup = false`, and `config push` copies both to the live project. Change
+`site_url` first if you host somewhere else.
 
 After pushing, check these in the dashboard:
 
-- **Authentication → Hooks:** *Before User Created* should point to
-  `public.hook_before_user_created`.
-- **Authentication → Providers → Email:** enabled, with *Confirm email* turned OFF.
+- **Authentication → Sign In / Providers:** "Allow new users to sign up" is OFF. Email is
+  enabled with *Confirm email* turned OFF.
+- **Authentication → Hooks:** there is **no** *Before User Created* hook. The Wave A
+  migration drops `public.hook_before_user_created`, so if one was configured earlier,
+  delete it or account creation will fail.
 - **Database → Extensions:** `pg_cron` is enabled. `select * from cron.job;` should list
   `auto-lock` and `weekly-points`.
 - **Storage:** a private bucket named `fighter-photos` exists.
 
-If the Edge Function rejects user tokens (this can happen on projects that use asymmetric
-JWT signing keys), redeploy it with `--no-verify-jwt`. The function still checks the caller
-itself: it verifies the JWT, then requires an active admin profile.
+If the Edge Functions reject user tokens (this can happen on projects that use asymmetric
+JWT signing keys), redeploy them with `--no-verify-jwt`. Each function still checks the
+caller itself: it verifies the JWT, then requires an active admin profile.
 
 ### 2. Cloudflare Pages (frontend)
 
@@ -131,27 +145,38 @@ update the four absolute `og:` / `twitter:` URLs in `index.html` so link preview
 working. Also add the new domain to `site_url` and `additional_redirect_urls` in
 `supabase/config.toml`, then run `supabase config push` again.
 
-## Bootstrapping the first admin and the first invite
+## Bootstrapping the first admin
 
-The production database starts with no invites and no admins. In the Supabase SQL editor:
+Nobody can sign up, so the first admin is created by hand, once, with the Auth Admin API and
+the project's secret key. Run this from your own machine. Never commit the key, never put it
+in `.env*` files that Vite reads, and never paste it into frontend code.
 
-1. **Create a bootstrap invite:**
-   ```sql
-   insert into public.invites (code, max_uses, expires_at)
-   values ('FIRSTFIGHT', 100, now() + interval '30 days');
+1. **Get the secret key** (`sb_secret_...`, or the legacy `service_role` key):
+   `supabase projects api-keys --project-ref <project-ref>`, or Dashboard → Project
+   Settings → API Keys.
+2. **Create the auth user.** The `on_auth_user_created` trigger builds the profile from
+   `user_metadata` and adds the 1000 starting points.
+   ```bash
+   export SB_SECRET='<secret key>'      # only in this shell
+   curl -X POST "https://<project-ref>.supabase.co/auth/v1/admin/users" \
+     -H "apikey: $SB_SECRET" -H "Authorization: Bearer $SB_SECRET" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"<username>@members.uosfight.local","password":"<temp password, 8+ chars>",
+          "email_confirm":true,
+          "user_metadata":{"username":"<username>","display_name":"<Shown Name>"}}'
+   unset SB_SECRET
    ```
-2. **Each founding admin signs up** at `https://<site>/join?code=FIRSTFIGHT`.
-3. **Promote at least two admins.** This is the same as `supabase/seed_admin.sql`:
+   The username must be 3 to 20 characters of `[a-z0-9_]`, and the display name 1 to 24
+   characters.
+3. **Promote it** in the SQL editor. `supabase/seed_admin.sql` has this plus an
+   `admin_log` entry:
    ```sql
-   update public.profiles set role = 'admin'
-    where username in ('first_admin_username', 'second_admin_username');
+   update public.profiles set role = 'admin' where username = '<username>';
    ```
-4. **Send out invites from the app.** From then on, admins create single-use or limited
-   invite codes under **Admin → Invites** and share `https://<site>/join?code=XXXXXXXX`.
-   Once the founders are in, revoke the bootstrap code:
-   ```sql
-   update public.invites set revoked = true where code = 'FIRSTFIGHT';
-   ```
+4. **Log in and create everyone else.** The first admin logs in at `https://<site>/login`,
+   changes the temporary password under **Me**, and creates the other accounts under
+   **Admin → Members → Create account**, including at least one more admin. Hand each person
+   their username and temporary password in person, and ask them to change it.
 
 Two or more admins are needed for fair play. An admin cannot settle or cancel a fight their
 own linked fighter is in, or a fight they have an active bet on. Another admin has to do it.
@@ -172,7 +197,10 @@ own linked fighter is in, or a fight they have an active bet on. Another admin h
   and remove it right away if they change their mind (Admin → Fighters). Photos sit in a
   private storage bucket and members see them through signed links that expire after 1 hour.
   Use nicknames, not real names.
-- **18+ only.** Signup asks people to confirm they are 18 or older.
+- **18+ only.** Admins only create accounts for people they know are 18 or older.
+- **Consent per fight.** A fight with linked fighters stays `scheduled` until both have
+  accepted it in the app, and either one can decline. Admins can force open a fight only
+  for a corner that has no active app account, and must give a reason, which is logged.
 - **Wrestle safely.** The app tracks results. It does not organise or supervise fights.
   Keep bouts consensual, supervised and safe, and follow your residence rules.
 - **Secrets.** Never commit `.env*` or `.secrets/`, and never put the service-role or secret

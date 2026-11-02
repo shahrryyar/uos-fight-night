@@ -13,6 +13,17 @@ export interface PosterOpts {
   /** ISO timestamp (or any Date-parsable string) of the fight */
   when: string
   url: string
+  /** Optional weight snapshot (kg) drawn under each name. Omit/null to hide. */
+  redKg?: number | null
+  blueKg?: number | null
+}
+
+/** 72.5 → "72.5 KG", 70 → "70 KG"; null/invalid → null. */
+function kgLabel(v: number | null | undefined): string | null {
+  if (v === null || v === undefined) return null
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return `${Number.isInteger(n) ? n : n.toFixed(1)} KG`
 }
 
 const W = 1080
@@ -76,17 +87,17 @@ function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, ma
   return size
 }
 
-/** Splits a long nickname into up to 2 balanced lines. */
-function splitName(ctx: CanvasRenderingContext2D, name: string, maxW: number): { lines: string[]; size: number } {
+/** Splits a long nickname into up to 2 balanced lines. `cap` limits the largest font size. */
+function splitName(ctx: CanvasRenderingContext2D, name: string, maxW: number, cap = 150): { lines: string[]; size: number } {
   const text = name.toUpperCase().trim() || '?'
-  const single = fitFont(ctx, text, DISPLAY, 150, 40, maxW)
+  const single = fitFont(ctx, text, DISPLAY, Math.min(150, cap), 40, maxW)
   const words = text.split(/\s+/)
-  if (single >= 96 || words.length < 2) return { lines: [text], size: single }
+  if (single >= Math.min(96, cap) || words.length < 2) return { lines: [text], size: single }
   let best: { lines: string[]; size: number } = { lines: [text], size: single }
   for (let i = 1; i < words.length; i++) {
     const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ')
-    const sa = fitFont(ctx, a, DISPLAY, 120, 40, maxW)
-    const sb = fitFont(ctx, b, DISPLAY, 120, 40, maxW)
+    const sa = fitFont(ctx, a, DISPLAY, Math.min(120, cap), 40, maxW)
+    const sb = fitFont(ctx, b, DISPLAY, Math.min(120, cap), 40, maxW)
     const s = Math.min(sa, sb)
     if (s > best.size) best = { lines: [a, b], size: s }
   }
@@ -200,22 +211,44 @@ function drawPortrait(ctx: CanvasRenderingContext2D, img: HTMLImageElement | nul
   ctx.restore()
 }
 
+const SUB_SIZE = 50
+const SUB_GAP = 58 // last name baseline → kg baseline
+
 /**
- * Red names grow upward from `y` (last line sits on y, which hugs the diagonal from above).
- * Blue names grow downward from `y` (corner label sits on y, just below the diagonal).
+ * Red names grow upward from `y` (last line — or the kg line if given — sits on y, hugging the diagonal from above).
+ * Blue names grow downward from `y` (corner label sits on y, just below the diagonal), kg line under the name.
+ * `bound` keeps the block clear of the header (up: min label baseline) or the footer (down: max kg baseline).
  */
-function drawName(ctx: CanvasRenderingContext2D, corner: string, name: string, x: number, y: number, maxW: number, align: CanvasTextAlign, grow: 'up' | 'down') {
-  const { lines, size } = splitName(ctx, name, maxW)
-  const lineH = size * 0.92
-  const cap = size * 0.72
-  let labelY: number, firstBaseline: number
-  if (grow === 'up') {
-    firstBaseline = y - lineH * (lines.length - 1)
-    labelY = firstBaseline - cap - 18
-  } else {
-    labelY = y
-    firstBaseline = y + 18 + cap
+function drawName(
+  ctx: CanvasRenderingContext2D, corner: string, name: string, x: number, y: number, maxW: number,
+  align: CanvasTextAlign, grow: 'up' | 'down', sub: string | null = null, bound?: number,
+) {
+  let cap = 150
+  let layout = splitName(ctx, name, maxW, cap)
+  const place = (lines: string[], size: number) => {
+    const lineH = size * 0.92
+    const capH = size * 0.72
+    if (grow === 'up') {
+      const lastBaseline = sub ? y - SUB_GAP : y
+      const firstBaseline = lastBaseline - lineH * (lines.length - 1)
+      return { lineH, firstBaseline, labelY: firstBaseline - capH - 18, subY: y, edge: firstBaseline - capH - 18 }
+    }
+    const firstBaseline = y + 18 + capH
+    const lastBaseline = firstBaseline + lineH * (lines.length - 1)
+    return { lineH, firstBaseline, labelY: y, subY: lastBaseline + SUB_GAP, edge: sub ? lastBaseline + SUB_GAP : lastBaseline }
   }
+  let pos = place(layout.lines, layout.size)
+  // Only shrink when a kg line was added (keeps the original layout byte-for-byte otherwise).
+  if (sub && bound !== undefined) {
+    const overflow = () => (grow === 'up' ? pos.edge < bound : pos.edge > bound)
+    while (overflow() && cap > 56) {
+      cap -= 6
+      layout = splitName(ctx, name, maxW, cap)
+      pos = place(layout.lines, layout.size)
+    }
+  }
+  const { lines, size } = layout
+  const { lineH, firstBaseline, labelY, subY } = pos
   ctx.save()
   ctx.textAlign = align
   ctx.textBaseline = 'alphabetic'
@@ -228,6 +261,12 @@ function drawName(ctx: CanvasRenderingContext2D, corner: string, name: string, x
   ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6
   ctx.fillStyle = C.bone
   lines.forEach((l, i) => ctx.fillText(l, x, firstBaseline + i * lineH))
+  if (sub) {
+    ctx.font = `${SUB_SIZE}px ${DISPLAY}`
+    ctx.letterSpacing = '4px'
+    ctx.fillStyle = C.gold
+    ctx.fillText(sub, x, subY)
+  }
   ctx.restore()
 }
 
@@ -337,10 +376,10 @@ export async function renderPoster(opts: PosterOpts): Promise<Blob> {
 
   // Red corner: portrait left, name right
   drawPortrait(ctx, redImg, opts.redName, 270, 470, 175, C.red)
-  drawName(ctx, 'RED CORNER', opts.redName, 1020, 488, 520, 'right', 'up')
+  drawName(ctx, 'RED CORNER', opts.redName, 1020, 488, 520, 'right', 'up', kgLabel(opts.redKg), 262)
   // Blue corner: name left, portrait right
   drawPortrait(ctx, blueImg, opts.blueName, 810, 900, 175, C.blue)
-  drawName(ctx, 'BLUE CORNER', opts.blueName, 60, 880, 520, 'left', 'down')
+  drawName(ctx, 'BLUE CORNER', opts.blueName, 60, 880, 520, 'left', 'down', kgLabel(opts.blueKg), 1110)
 
   drawVS(ctx)
   drawFooter(ctx, opts.when, opts.url)

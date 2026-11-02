@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { must, record, useAsync } from '../lib/hooks'
+import { fmtKg, must, record, useAsync } from '../lib/hooks'
 import { formatStreak } from '../lib/math'
 import type { Fighter, FighterRanking } from '../lib/types'
 import FighterPhoto from '../components/FighterPhoto'
@@ -34,6 +34,7 @@ export default function Fighters() {
                   </span>
                   <FighterPhoto path={f.photo_path} nickname={f.nickname} className="size-24 text-2xl" />
                   <p className="mt-2 font-display text-2xl leading-none tracking-wide break-words max-w-full">{f.nickname}</p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums text-bone/90">{fmtKg(f.weight_kg) || '— kg'}</p>
                   <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted">
                     <span className="font-semibold text-bone tabular-nums">{record(f)}</span>
                     <span className="tabular-nums">{f.elo} Elo</span>

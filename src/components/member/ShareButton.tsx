@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { sharePoster } from '../../lib/poster'
 import { signedPhotoUrl } from '../FighterPhoto'
 import { friendlyError } from '../../lib/supabase'
-import type { Fight, Fighter } from '../../lib/types'
+import { cornerKg, type FightRow } from '../../lib/hooks'
+import type { Fighter } from '../../lib/types'
 
 /** Generates and shares the VS poster image (Web Share / download fallback). */
-export default function ShareButton({ fight, red, blue }: { fight: Fight; red?: Fighter; blue?: Fighter }) {
+export default function ShareButton({ fight, red, blue }: { fight: FightRow; red?: Fighter; blue?: Fighter }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -18,6 +19,8 @@ export default function ShareButton({ fight, red, blue }: { fight: Fight; red?: 
         redName: red?.nickname ?? 'Red corner',
         blueName: blue?.nickname ?? 'Blue corner',
         redPhotoUrl, bluePhotoUrl,
+        redKg: cornerKg(fight, 'red', red),
+        blueKg: cornerKg(fight, 'blue', blue),
         when: fight.scheduled_at,
         url: `${window.location.origin}/`,
       })

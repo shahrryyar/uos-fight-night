@@ -17,7 +17,14 @@ export default function AdminPoints() {
   const [dialog, confirm] = useConfirm()
 
   const refresh = useCallback(() => loadRun(async () => {
-    setPeople(must(await supabase.from('balances').select('*').order('username')) as Balance[])
+    const [b, p] = await Promise.all([
+      supabase.from('balances').select('*'),
+      supabase.from('profiles').select('id, username, display_name'),
+    ])
+    const names = Object.fromEntries((must(p) as { id: string; username: string; display_name: string | null }[])
+      .map(x => [x.id, x.display_name?.trim() || x.username]))
+    setPeople((must(b) as Balance[]).map(x => ({ ...x, username: names[x.user_id] ?? x.username }))
+      .sort((x, y) => x.username.localeCompare(y.username)))
   }), [loadRun])
   useEffect(() => { void refresh() }, [refresh])
 
@@ -38,7 +45,7 @@ export default function AdminPoints() {
       confirmLabel: n > 0 ? `Give ${n}` : `Take ${-n}`,
       body: (
         <>
-          <p><b>@{who.username}</b>: {who.balance.toLocaleString()} → <b className={after < 0 ? 'text-red' : 'text-gold'}>{after.toLocaleString()}</b> points</p>
+          <p><b>{who.username}</b>: {who.balance.toLocaleString()} → <b className={after < 0 ? 'text-red' : 'text-gold'}>{after.toLocaleString()}</b> points</p>
           <p className="text-muted">“{note.trim()}”</p>
           {after < 0 && <p className="text-red">This puts them below zero.</p>}
         </>
@@ -47,7 +54,7 @@ export default function AdminPoints() {
     if (!yes) return
     const r = await act.run(async () => { must(await supabase.rpc('admin_adjust_points', { p_user_id: who.user_id, p_delta: n, p_note: note.trim() })); return true })
     if (r) {
-      setOk(`${n > 0 ? '+' : ''}${n} points for @${who.username}.`)
+      setOk(`${n > 0 ? '+' : ''}${n} points for ${who.username}.`)
       setDelta(''); setNote('')
       void refresh()
     }
@@ -62,7 +69,7 @@ export default function AdminPoints() {
         <Field label="Member">
           <select className={inputCls} value={userId} onChange={e => setUserId(e.target.value)}>
             <option value="">Choose member…</option>
-            {people.map(p => <option key={p.user_id} value={p.user_id}>@{p.username} — {p.balance.toLocaleString()} pts</option>)}
+            {people.map(p => <option key={p.user_id} value={p.user_id}>{p.username} — {p.balance.toLocaleString()} pts</option>)}
           </select>
         </Field>
         <Field label="Change (+ give / − take)">

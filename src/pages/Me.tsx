@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { supabase, friendlyError } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { fmtDate, must, useAsync, useBalance, useFightersMap } from '../lib/hooks'
+import { displayName, fmtDate, must, useAsync, useBalance, useFightersMap } from '../lib/hooks'
 import type { Bet, Fight, LedgerRow } from '../lib/types'
 import { Card, Empty, ErrorBox, Loading, NO_CASH, Tabs } from '../components/member/ui'
 
-const REASON: Record<LedgerRow['reason'], string> = {
+const REASON: Record<string, string> = {
   signup: 'Welcome bonus',
   weekly: 'Weekly bonus',
   topup: 'Top-up (low balance)',
@@ -13,6 +13,7 @@ const REASON: Record<LedgerRow['reason'], string> = {
   bet_cancel: 'Pick cancelled',
   payout: 'Pick won',
   refund: 'Refund',
+  payout_reversal: 'Result corrected — payout reversed',
   admin_adjust: 'Admin adjustment',
 }
 
@@ -36,8 +37,11 @@ export default function Me() {
       <Card className="relative mb-4 overflow-hidden p-5 text-center">
         <div className="absolute inset-0 bg-linear-to-br from-gold/15 via-transparent to-transparent" aria-hidden />
         <div className="relative">
-          <p className="text-sm text-muted">@{profile?.username}{profile?.role === 'admin' && <span className="ml-1 text-gold">· admin</span>}</p>
-          <p className="mt-1 font-display text-6xl leading-none tracking-wide text-gold tabular-nums">
+          <p className="font-display text-3xl leading-none tracking-wide">{displayName(profile, '…')}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Login: {profile?.username}{profile?.role === 'admin' && <span className="ml-1 text-gold">· admin</span>}
+          </p>
+          <p className="mt-3 font-display text-6xl leading-none tracking-wide text-gold tabular-nums">
             {balance == null ? '…' : balance.toLocaleString()}
           </p>
           <p className="text-[11px] uppercase tracking-widest text-muted">{NO_CASH}</p>
@@ -152,6 +156,9 @@ function Account() {
   const input = 'min-h-11 w-full rounded-lg border border-line bg-ink px-3 text-bone placeholder:text-muted'
   return (
     <div className="space-y-4">
+      <p className="rounded-xl border border-line bg-surface p-3 text-xs text-muted">
+        Your display name and login are set by an admin. Ask one if something needs changing.
+      </p>
       <Card className="p-4">
         <h2 className="font-display text-2xl tracking-wider">Change password</h2>
         <form onSubmit={submit} className="mt-2 space-y-2">

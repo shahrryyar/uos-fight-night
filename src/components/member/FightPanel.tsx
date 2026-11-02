@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { countdown } from '../../lib/math'
-import { must, useAsync, usePoll, useProfilesMap, useRealtime } from '../../lib/hooks'
-import type { Bet, Fight, Fighter, FightPool, Side, VoteTotals } from '../../lib/types'
+import { must, useAsync, useDisplayNames, usePoll, useRealtime, type FightRow } from '../../lib/hooks'
+import type { Bet, Fighter, FightPool, Side, VoteTotals } from '../../lib/types'
 import { Card, ErrorBox } from './ui'
-import VsCard from './VsCard'
+import VsCard, { type CardSize } from './VsCard'
+import ConsentPanel from './ConsentPanel'
 import PoolBar from './PoolBar'
 import VotePanel from './VotePanel'
 import BetPanel from './BetPanel'
@@ -15,8 +16,11 @@ import LockedDetails from './LockedDetails'
 import ShareButton from './ShareButton'
 
 interface Props {
-  fight: Fight; red?: Fighter; blue?: Fighter; now: Date
+  fight: FightRow; red?: Fighter; blue?: Fighter; now: Date
   balance: number | null; onPointsChanged: () => void
+  /** Called after accept/decline so the card list refetches. */
+  onFightChanged?: () => void
+  size?: CardSize
 }
 
 interface PanelData {
@@ -29,7 +33,7 @@ interface PanelData {
 }
 
 /** One full fight block: matchup, pool, vote, points pick, reactions, results. */
-export default function FightPanel({ fight, red, blue, now, balance, onPointsChanged }: Props) {
+export default function FightPanel({ fight, red, blue, now, balance, onPointsChanged, onFightChanged, size = 'main' }: Props) {
   const { profile } = useAuth()
   const uid = profile?.id
   const revealed = fight.status === 'locked' || fight.status === 'settled'
@@ -76,34 +80,42 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
   ], () => void data.reload(), live)
   usePoll(() => void data.reload(), 10_000, live)
 
-  const names = useProfilesMap((data.data?.bets ?? []).map(b => b.user_id))
-  const nameMap = new Map([...(names.data ?? new Map()).entries()].map(([k, v]) => [k, v.username]))
+  const nameMap = useDisplayNames((data.data?.bets ?? []).map(b => b.user_id))
 
   const redName = red?.nickname ?? 'Red', blueName = blue?.nickname ?? 'Blue'
   const open = fight.status === 'open' && !countdown(fight.lock_at, now).done
-  const participant = !!profile?.fighter_id && (profile.fighter_id === fight.red_fighter_id || profile.fighter_id === fight.blue_fighter_id)
+  const mySide: Side | null = !profile?.fighter_id ? null
+    : profile.fighter_id === fight.red_fighter_id ? 'red'
+    : profile.fighter_id === fight.blue_fighter_id ? 'blue' : null
+  const participant = mySide != null
+  const scheduled = fight.status === 'scheduled'
+  const done = fight.status === 'settled' || fight.status === 'cancelled'
   const d = data.data
 
   const afterBet = () => { void data.reload(); onPointsChanged() }
 
   return (
-    <Card className="overflow-hidden">
-      <VsCard fight={fight} red={red} blue={blue} now={now} />
-      <div className="space-y-4 p-3 pt-4">
+    <Card className={`overflow-hidden ${fight.is_main_event ? 'border-2 border-gold shadow-[0_0_32px_rgba(227,179,65,0.22)]' : ''}`}>
+      <VsCard fight={fight} red={red} blue={blue} now={now} size={size} />
+      <div className={`space-y-4 p-3 ${size === 'undercard' ? 'pt-3' : 'pt-4'}`}>
         {data.error && !d && <ErrorBox error={data.error} onRetry={() => void data.reload()} />}
         {(fight.status === 'settled' || fight.status === 'cancelled') && (
           <ResultBanner fight={fight} winnerName={fight.winner_side === 'red' ? redName : blueName} myBet={d?.myBet ?? null} />
         )}
-        {fight.status !== 'cancelled' && <PoolBar pool={d?.pool ?? null} />}
+        {scheduled && (
+          <ConsentPanel fight={fight} redName={redName} blueName={blueName} mySide={mySide}
+            onChanged={() => { void data.reload(); onFightChanged?.() }} />
+        )}
+        {!scheduled && fight.status !== 'cancelled' && <PoolBar pool={d?.pool ?? null} />}
         {(fight.status === 'open' || fight.status === 'locked') && d && (
           <VotePanel fightId={fight.id} myVote={d.myVote} canVote={open} redName={redName} blueName={blueName}
             onVoted={() => void data.reload()} />
         )}
-        {participant && fight.status !== 'settled' && fight.status !== 'cancelled' ? (
+        {scheduled ? null : participant && !done ? (
           <p className="rounded-xl border border-gold/40 bg-gold/10 p-3 text-center text-sm font-semibold text-gold">
             You're in this fight — no bets. Go get 'em. 💪
           </p>
-        ) : d && fight.status !== 'settled' && fight.status !== 'cancelled' && (
+        ) : d && !done && (
           <BetPanel fightId={fight.id} pool={d.pool} balance={balance} myBet={d.myBet?.status === 'active' ? d.myBet : null}
             canBet={open} defaultSide={d.myVote} redName={redName} blueName={blueName} onChanged={afterBet} />
         )}
@@ -111,8 +123,8 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
           <LockedDetails totals={d.totals} bets={d.bets} names={nameMap} myId={uid}
             redName={redName} blueName={blueName} settled={fight.status === 'settled'} />
         )}
-        {rx && <Reactions fightId={fight.id} state={rx} onChange={setRx} onSynced={() => void data.reload()} />}
-        <ShareButton fight={fight} red={red} blue={blue} />
+        {rx && fight.status !== 'cancelled' && <Reactions fightId={fight.id} state={rx} onChange={setRx} onSynced={() => void data.reload()} />}
+        {fight.status !== 'cancelled' && <ShareButton fight={fight} red={red} blue={blue} />}
       </div>
     </Card>
   )

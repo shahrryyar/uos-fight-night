@@ -1,13 +1,15 @@
-import { METHOD_LABEL, fmtPts } from '../../lib/hooks'
-import type { Bet, Fight } from '../../lib/types'
+import { METHOD_LABEL, cancelCopy, fmtPts, type FightRow } from '../../lib/hooks'
+import type { Bet } from '../../lib/types'
 
 /** Winner banner for settled fights, cancellation notice for cancelled. */
-export default function ResultBanner({ fight, winnerName, myBet }: { fight: Fight; winnerName: string; myBet: Bet | null }) {
+export default function ResultBanner({ fight, winnerName, myBet }: { fight: FightRow; winnerName: string; myBet: Bet | null }) {
   if (fight.status === 'cancelled') {
+    const c = cancelCopy(fight)
     return (
       <div className="rounded-xl border border-line bg-surface-2 p-3 text-center">
-        <p className="font-display text-3xl tracking-wider text-muted">Fight cancelled</p>
-        <p className="text-xs text-muted">All points picks were refunded.{fight.result_note ? ` ${fight.result_note}` : ''}</p>
+        <p className="font-display text-3xl leading-none tracking-wider text-muted">{c.title}</p>
+        <p className="mt-1 text-xs text-muted">{c.sub}{fight.result_note ? ` ${fight.result_note}` : ''}</p>
+        {myBet?.status === 'refunded' && <p className="mt-1 text-xs text-muted">Your {fmtPts(myBet.amount)} came back.</p>}
       </div>
     )
   }
@@ -19,9 +21,9 @@ export default function ResultBanner({ fight, winnerName, myBet }: { fight: Figh
       <p className="font-display text-5xl tracking-wide leading-none mt-1">{winnerName}</p>
       <p className="mt-1 text-sm">
         by <span className="font-bold uppercase tracking-wide">{fight.method ? METHOD_LABEL[fight.method] : '—'}</span>
+        {fight.finish_move && <span className="text-muted"> ({fight.finish_move})</span>}
         {fight.elo_delta != null && <span className="text-muted"> · ±{Math.abs(fight.elo_delta)} Elo</span>}
       </p>
-      {fight.result_note && <p className="mt-1 text-xs text-muted italic">“{fight.result_note}”</p>}
       {myBet && (
         <p className="mt-2 text-sm font-semibold">
           {myBet.status === 'won' && <span className="text-gold">You won {fmtPts(myBet.payout)} 🎉</span>}

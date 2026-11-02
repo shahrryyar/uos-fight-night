@@ -1,15 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, usernameToEmail, USERNAME_RE } from './supabase'
+import { supabase, usernameToEmail } from './supabase'
 import type { Profile } from './types'
 
+/**
+ * Accounts are created by admins only (edge fn `admin-create-user`).
+ * There is no self-signup: members just log in with username + password.
+ */
 interface AuthCtx {
   session: Session | null
   profile: Profile | null
   isAdmin: boolean
   loading: boolean
   signIn: (username: string, password: string) => Promise<void>
-  signUp: (username: string, password: string, invite: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -45,24 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password })
     if (error) throw error
   }
-  const signUp = async (username: string, password: string, invite: string) => {
-    const u = username.trim().toLowerCase()
-    if (!USERNAME_RE.test(u)) throw new Error('Username: 3-20 letters, numbers or _')
-    if (password.length < 8) throw new Error('Password must be at least 8 characters')
-    const { error } = await supabase.auth.signUp({
-      email: usernameToEmail(u),
-      password,
-      options: { data: { username: u, invite_code: invite.trim().toUpperCase() } },
-    })
-    if (error) throw error
-  }
   const signOut = async () => { await supabase.auth.signOut() }
 
   return (
     <Ctx.Provider value={{
       session, profile, loading,
       isAdmin: profile?.role === 'admin' && profile.active,
-      signIn, signUp, signOut,
+      signIn, signOut,
       refreshProfile: () => loadProfile(session?.user.id),
     }}>
       {children}
@@ -74,4 +66,10 @@ export function useAuth() {
   const v = useContext(Ctx)
   if (!v) throw new Error('useAuth outside AuthProvider')
   return v
+}
+
+/** The name shown on screens: admin-set display_name, falling back to @username. */
+export function shownName(p: Pick<Profile, 'display_name' | 'username'> | null | undefined): string {
+  if (!p) return ''
+  return p.display_name?.trim() || `@${p.username}`
 }

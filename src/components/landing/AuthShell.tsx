@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Mark from './Mark'
 import './landing.css'
 
-/** Shared poster-style backdrop for /login and /join. */
+/** Shared poster-style backdrop for the login screen. */
 export default function AuthShell({ kicker, title, children, footer }: { kicker: string; title: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="relative min-h-dvh overflow-hidden bg-ink">
