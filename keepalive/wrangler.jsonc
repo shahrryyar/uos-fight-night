@@ -1,0 +1,10 @@
+{
+  "name": "uos-keepalive",
+  "main": "index.js",
+  "compatibility_date": "2026-10-01",
+  "triggers": { "crons": ["17 6 * * *"] },
+  "vars": {
+    "SUPABASE_URL": "https://xfbfslbbljefiizjnsic.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_nnpBljMUb4dwSq1D4-rzZQ_ds6Uttxv"
+  }
+}
