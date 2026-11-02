@@ -45,7 +45,13 @@ export function settlePool(bets: PoolBet[], winner: Side): Settlement[] {
   }
   const dust = total - paid
   if (dust > 0) {
-    const top = [...winners].sort((a, b) => b.amount - a.amount || a.created_at.localeCompare(b.created_at))[0]
+    const ts = (x: PoolBet) => {
+      const t = Date.parse(x.created_at)
+      return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t
+    }
+    const top = [...winners].sort(
+      (a, b) => b.amount - a.amount || ts(a) - ts(b) || a.id.localeCompare(b.id),
+    )[0]
     out.get(top.id)!.payout += dust
   }
   return bets.map(b => out.get(b.id)!)
@@ -54,7 +60,9 @@ export function settlePool(bets: PoolBet[], winner: Side): Settlement[] {
 /** Elo update. Returns integer delta applied to A (B gets -delta). */
 export function eloUpdate(rA: number, rB: number, aWon: boolean, k = 32): { a: number; b: number; delta: number } {
   const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400))
-  const delta = Math.round(k * ((aWon ? 1 : 0) - expA))
+  const raw = k * ((aWon ? 1 : 0) - expA)
+  // Round half away from zero (matches Postgres round(numeric)) so A-vs-B and B-vs-A agree.
+  const delta = (raw < 0 ? -Math.round(-raw) : Math.round(raw)) || 0
   return { a: rA + delta, b: rB - delta, delta }
 }
 
@@ -68,7 +76,7 @@ export function formatStreak(n: number): string {
 export interface Countdown { done: boolean; days: number; hours: number; minutes: number; seconds: number; label: string }
 export function countdown(target: Date | string, now: Date = new Date()): Countdown {
   const ms = new Date(target).getTime() - now.getTime()
-  if (ms <= 0) return { done: true, days: 0, hours: 0, minutes: 0, seconds: 0, label: 'NOW' }
+  if (!(ms > 0)) return { done: true, days: 0, hours: 0, minutes: 0, seconds: 0, label: 'NOW' }
   const s = Math.floor(ms / 1000)
   const days = Math.floor(s / 86400), hours = Math.floor((s % 86400) / 3600)
   const minutes = Math.floor((s % 3600) / 60), seconds = s % 60
