@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { getBrandTitle } from '../../lib/brand'
 import { Logo, RegaCredit } from '../brand'
 import { Art } from '../ui'
 import './public.css'
@@ -19,7 +20,7 @@ export default function AuthShell({ children, after }: { children: ReactNode; af
       <div className="lp-stage">
         <Art name="mat" look="bg" priority sizes="100vw" />
         <header className="wrap appbar lp-bar">
-          <Link to="/" className="brand" aria-label="UoS Fight Night, home">
+          <Link to="/" className="brand" aria-label={`${getBrandTitle()}, home`}>
             <Logo variant="lockup" size={64} decorative priority />
           </Link>
         </header>

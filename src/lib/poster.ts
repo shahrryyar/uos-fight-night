@@ -7,6 +7,8 @@
  * scratch canvas; if a photo blocks CORS it is skipped (initials), so the poster canvas never taints.
  */
 import { halftoneCanvas, TONER_RGB } from './halftone'
+import { getBrandCopy, getBrandTitle } from './brand'
+
 
 export interface PosterOpts {
   title?: string | null
@@ -340,7 +342,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, url: string) {
   ctx.font = `900 64px ${DISPLAY}`
   ctx.fillText('WHO WINS?', X0 + 28, by + 70)
   ctx.font = `700 28px ${BODY}`
-  const pick = 'Make your pick on UoS Fight Night.'
+  const pick = getBrandCopy().posterPick
   ctx.fillText(fitText(ctx, pick, CW - 56), X0 + 28, by + 112)
   ctx.fillStyle = C.bone2
   ctx.font = `700 26px ${DATA}`
@@ -406,7 +408,7 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 function shareText(o: PosterOpts): string {
   const vs = `${o.redName} vs ${o.blueName}`
-  return `${o.title ? `${o.title}: ` : ''}${vs}. Who you got? Pick your fighter on UoS Fight Night (fun points only).`
+  return `${o.title ? `${o.title}: ` : ''}${vs}. ${getBrandCopy().posterShare}`
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -446,9 +448,9 @@ export async function sharePoster(opts: PosterOpts): Promise<void> {
     blob = await renderPoster({ ...opts, redPhotoUrl: null, bluePhotoUrl: null })
   }
   const slug = `${opts.redName}-vs-${opts.blueName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  const file = new File([blob], `uos-fight-night-${slug || 'poster'}.png`, { type: 'image/png' })
+  const file = new File([blob], `fight-night-${slug || 'poster'}.png`, { type: 'image/png' })
   const text = shareText(opts)
-  const title = opts.title || 'UoS Fight Night'
+  const title = opts.title || getBrandTitle()
 
   if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
     try {

@@ -1,4 +1,5 @@
 import { useAuth } from '../lib/auth'
+import { getBrandCopy, getBrandTitle } from '../lib/brand'
 import { Logo, RegaCredit } from '../components/brand'
 import { Art, ButtonLink } from '../components/ui'
 import NextFight from '../components/landing/NextFight'
@@ -13,20 +14,18 @@ const rules = [
   ['18+ only.', 'Every fighter and every member is an adult.'],
 ] as const
 
-const SHARE_TEXT = 'UoS Fight Night: dorm wrestling nights, real records, fun points. Members only.'
-
 export default function Landing() {
   const { session } = useAuth()
   const cta = session ? { to: '/app', label: 'Go to Tonight', top: 'Open app' } : { to: '/login', label: 'Log in', top: 'Log in' }
 
   return (
     <div className="pg-landing">
-      <title>UoS Fight Night</title>
+      <title>{getBrandTitle()}</title>
       <a className="skip" href="#main">Skip to content</a>
 
       <header className="wrap lp-hero">
         <div className="lp-top">
-          <h1 className="lp-brand"><Logo variant="lockup" size={72} alt="UoS Wrestling Fight Night" priority /></h1>
+          <h1 className="lp-brand"><Logo variant="lockup" size={72} priority /></h1>
           <ButtonLink to={cta.to} variant="ghost" size="sm" className="top-login">{cta.top}</ButtonLink>
         </div>
       </header>
@@ -58,7 +57,7 @@ export default function Landing() {
         <section className="section" aria-labelledby="share">
           <h2 id="share" className="t-head">Bring the dorm</h2>
           <p className="t-help c-2 lp-share-sub">Send this page to the group chat. An admin sets up a login for anyone who wants in.</p>
-          <ShareButton className="lp-share" title="UoS Fight Night" text={SHARE_TEXT} />
+          <ShareButton className="lp-share" title={getBrandTitle()} text={getBrandCopy().shareText} />
         </section>
 
         <RegaCredit className="lp-foot" />

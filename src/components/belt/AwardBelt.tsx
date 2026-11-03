@@ -11,7 +11,7 @@ import { ChampionBelt } from '../brand'
 import { Button, Field, Input, Paper, useToast } from '../ui'
 import { FormError } from '../admin/ui'
 import { invalidateChampion, useChampion } from './useChampion'
-import { defensesText, beltError } from './reign'
+import { defensesText, beltError, BELT_CODES } from './reign'
 import './belt.css'
 
 

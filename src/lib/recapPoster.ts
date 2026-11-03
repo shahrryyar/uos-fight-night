@@ -12,6 +12,8 @@
  * Shares through the same Web Share / download + copy fallback as sharePoster.
  */
 import type { CardRecap, CardRecapFight } from './types'
+import { getBrandCopy } from './brand'
+
 
 export interface RecapFight {
   red: string
@@ -581,7 +583,7 @@ function shareText(o: RecapOpts): string {
   const fotn = o.fights.find((f, i) => f.fotn || o.fightOfNight === i)
   return `Fight night results, ${day}: ${n} bout${n === 1 ? '' : 's'} in the books.`
     + (fotn ? ` Fight of the Night: ${fotn.red} vs ${fotn.blue}.` : '')
-    + ' See every result on UoS Fight Night (fun points only).'
+    + ' ' + getBrandCopy().recapShare
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -604,7 +606,7 @@ async function copyText(text: string): Promise<boolean> {
  */
 export async function shareRecap(opts: RecapOpts): Promise<'shared' | 'downloaded' | 'cancelled'> {
   const blob = await renderRecap(opts)
-  const file = new File([blob], `uos-fight-night-results-${opts.cardDate}.png`, { type: 'image/png' })
+  const file = new File([blob], `fight-night-results-${opts.cardDate}.png`, { type: 'image/png' })
   const text = shareText(opts)
   const title = `Results, ${recapDay(opts.cardDate)}`
   if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {

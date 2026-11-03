@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
+import { getBrandTitle } from '../../lib/brand'
 import { Logo, RegaCredit } from '../brand'
 import { Art, ButtonLink } from '../ui'
 import './public.css'
@@ -9,10 +10,10 @@ export default function NotFound() {
   const { session } = useAuth()
   return (
     <div className="pg-404">
-      <title>Not found · UoS Fight Night</title>
+      <title>Not found · {getBrandTitle()}</title>
       <a className="skip" href="#main">Skip to content</a>
       <header className="wrap appbar lp-bar">
-        <Link to="/" className="brand" aria-label="UoS Fight Night, home">
+        <Link to="/" className="brand" aria-label={`${getBrandTitle()}, home`}>
           <Logo variant="lockup" size={64} decorative priority />
         </Link>
       </header>

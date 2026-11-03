@@ -1,4 +1,4 @@
-/* UoS Fight Night: design tokens + component layer for Tailwind v4.
+/* Fight Night: design tokens + component layer for Tailwind v4.
    Generated from design/final/_src (theme.css, base.css, components.css). Edit those, then rebuild.
    Drop-in replacement for src/index.css. Textures live in public/textures/. */
 @import "tailwindcss";
@@ -125,7 +125,7 @@ input, textarea { caret-color: var(--color-red); }
 
 @layer components {
 /* =====================================================================
-   UoS Fight Night: underground fight flyer. Component layer.
+   Underground fight flyer. Component layer.
    Material tiers (DESIGN.md §3):
      A .poster  taped + paper tilted. ONE per screen, only the thing you act on.
      B .paper   flat bone sheet, torn edge. Documents: stat sheet, forms, results.

@@ -58,7 +58,7 @@ export function partitionCardBouts(cardFights: FightRow[], now: Date = new Date(
   const undercard = live.filter(f => f !== featured)
   const results = done.filter(f => f !== featured)
     .sort((a, b) => Number(a.status === 'cancelled') - Number(b.status === 'cancelled') || (a.bout_order ?? 0) - (b.bout_order ?? 0))
-  return { featured, undercard, results }
+  return { featured, undercard, results, live, done }
 }
 
 /** Tonight order (P0, DESIGN 11.3): open main, open by bout order, locked, scheduled, settled, cancelled. */

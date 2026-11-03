@@ -4,9 +4,9 @@ import { useAuth } from '../lib/auth'
 import { useBalance } from '../lib/hooks'
 import { BalanceContext } from '../lib/balance'
 import { fmtNum } from '../lib/copy'
+import { getBrandTitle } from '../lib/brand'
 import { Logo, RegaCredit } from './brand'
 import { isRefereeRole } from './referee/refereeAuth'
-
 import { CalendarDot, ClockCounterClockwise, Ranking, UserCircle, UsersThree, Loading, type IconComponent } from './ui'
 
 const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] = [
@@ -41,7 +41,7 @@ export default function AppLayout() {
     <BalanceContext.Provider value={ctx}>
       <a className="skip" href="#main">Skip to content</a>
       <header className="wrap appbar">
-        <NavLink to="/app" end className="brand" aria-label="UoS Fight Night: tonight's card">
+        <NavLink to="/app" end className="brand" aria-label={`${getBrandTitle()}: tonight's card`}>
           <Logo variant="mark" size={40} decorative />
         </NavLink>
         <div className="appbar-right">

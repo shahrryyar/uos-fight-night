@@ -6,6 +6,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
+import { getBrandTitle } from '../../lib/brand'
 import { must, useAsync, useNow, usePoll, useRealtime, fmtTime, fmtDayTime, boutSort, todayCard } from '../../lib/hooks'
 import type { Fight, Fighter, LiveScore } from '../../lib/types'
 import { ButtonLink, CaretRight, EmptyState, Loading, Alert, Stamp, Timer } from '../ui'
@@ -55,7 +56,7 @@ export default function RefList() {
 
   return (
     <div className="pg-reflist">
-      <title>Ref · UoS Fight Night</title>
+      <title>Ref · {getBrandTitle()}</title>
       <h1 className="t-title">Ref</h1>
       <p className="t-body c-2 rl-intro">Run the clock and the score for a bout once its picks are locked. An admin records the result after.</p>
 

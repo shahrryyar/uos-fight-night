@@ -14,9 +14,8 @@
  * sync when lockdown flips while a page is open.
  */
 
-export const BRAND_TITLE = 'UoS Fight Night'
-const BRAND_DESCRIPTION = 'Dorm wrestling nights at the University of Sulaimani. Records, picks and fun points. Members only.'
-/** must match index.html */
+import { getBrandDesc, getBrandTitle, loadBrandCopy } from '../../lib/brand'
+
 export const SHELL_TITLE = 'Members'
 const SHELL_DESCRIPTION = 'Members only.'
 export const PLAIN_ICON = 'data:image/svg+xml,' + encodeURIComponent(
@@ -43,9 +42,20 @@ export function applyBrandHead(on: boolean): void {
 
   // the shell <title> is the fallback for routes that don't render their own <title>
   const t = shellTitle()
-  if (t) t.text = on ? BRAND_TITLE : SHELL_TITLE
+  if (t) t.text = on ? getBrandTitle() : SHELL_TITLE
   const desc = head.querySelector<HTMLMetaElement>('meta[name="description"]')
-  if (desc) desc.content = on ? BRAND_DESCRIPTION : SHELL_DESCRIPTION
+  if (desc) desc.content = on ? getBrandDesc() : SHELL_DESCRIPTION
+
+  if (on) {
+    void loadBrandCopy().then(c => {
+      if (applied) {
+        const curT = shellTitle()
+        if (curT) curT.text = c.title
+        const curD = head.querySelector<HTMLMetaElement>('meta[name="description"]')
+        if (curD) curD.content = c.description
+      }
+    })
+  }
 
   head.querySelectorAll('[data-brand-head]').forEach(el => el.remove())
   const shellIcon = head.querySelector<HTMLLinkElement>('link[rel="icon"][data-shell]')

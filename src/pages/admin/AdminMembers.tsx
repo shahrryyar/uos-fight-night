@@ -3,6 +3,7 @@ import { USERNAME_RE, supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { fmtNum } from '../../lib/copy'
 import type { Balance, Fighter, Profile } from '../../lib/types'
+import { getBrandCopy } from '../../lib/brand'
 import MemberName from '../../components/MemberName'
 import {
   ArrowCounterClockwise, Button, CaretDown, CaretRight, Copy, EmptyState, Field, Input, Loading, MagnifyingGlass, Paper,
@@ -122,7 +123,7 @@ function CopyRow({ label, value, what, mono = true }: { label: string; value: st
 }
 
 const loginMessage = (username: string, password: string) =>
-  `Your UoS Fight Night login. Username: ${username}. Password: ${password}. Change the password in Me after you log in.`
+  `${getBrandCopy().loginInvite} Username: ${username}. Password: ${password}. Change the password in Me after you log in.`
 
 /* ---------------- create account ---------------- */
 

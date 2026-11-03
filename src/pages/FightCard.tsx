@@ -98,7 +98,7 @@ export default function FightCard() {
     <div className="pg-tonight">
       {head(cards[0].cardDate, cards[0].fights.length)}
       {cards.map((card, ci) => {
-        const { featured, undercard: rows, results } = partitionCardBouts(card.fights, now)
+        const { featured, undercard: rows, results, live, done } = partitionCardBouts(card.fights, now)
 
         const panel = (f: FightRow, size: 'main' | 'row') => (
           <FightPanel key={f.id} fight={f} now={now} size={size} taped={f.id === posterId}

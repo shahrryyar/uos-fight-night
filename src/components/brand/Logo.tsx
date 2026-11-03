@@ -6,6 +6,7 @@
  * light = for bone paper, mono = single bone colour (on photos / busy art).
  */
 import type { ImgHTMLAttributes } from 'react'
+import { getBrandTitle } from '../../lib/brand'
 
 export type LogoVariant = 'mark' | 'lockup'
 export type LogoTone = 'dark' | 'light' | 'mono'
@@ -23,7 +24,7 @@ export interface LogoProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'sr
   tone?: LogoTone
   /** rendered HEIGHT in CSS px (mark: width = height). Default mark 32, lockup 96 */
   size?: number
-  /** accessible name; default "UoS Fight Night". Ignored when decorative */
+  /** accessible name; default league title. Ignored when decorative */
   alt?: string
   /** true when a visible text label sits next to it (alt="") */
   decorative?: boolean
@@ -31,11 +32,12 @@ export interface LogoProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'sr
   priority?: boolean
 }
 
-export default function Logo({ variant = 'mark', tone = 'dark', size, alt = 'UoS Fight Night', decorative, priority, className = '', ...rest }: LogoProps) {
+export default function Logo({ variant = 'mark', tone = 'dark', size, alt, decorative, priority, className = '', ...rest }: LogoProps) {
   const h = size ?? (variant === 'mark' ? 32 : 96)
   const w = variant === 'mark' ? h : Math.round(h * LOCKUP_RATIO)
+  const altText = decorative ? '' : (alt ?? getBrandTitle())
   return (
-    <img src={FILES[variant][tone]} width={w} height={h} alt={decorative ? '' : alt}
+    <img src={FILES[variant][tone]} width={w} height={h} alt={altText}
       className={`logo ${className}`.trim()} decoding="async"
       loading={priority ? 'eager' : undefined} fetchPriority={priority ? 'high' : undefined}
       draggable={false} translate="no" {...rest} />
