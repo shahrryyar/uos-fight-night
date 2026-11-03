@@ -110,7 +110,7 @@ supabase functions deploy admin-create-user
 supabase functions deploy admin-reset-password
 ```
 
-`supabase/config.toml` sets `[auth] site_url = "https://uos-fight-night.pages.dev"` and
+`supabase/config.toml` sets `[auth] site_url = "https://dormschampion.pages.dev"` and
 `enable_signup = false`, and `config push` copies both to the live project. Change
 `site_url` first if you host somewhere else.
 
@@ -137,10 +137,10 @@ build. Use the publishable key, never the secret or service-role key.
 
 ```bash
 npx wrangler login      # once
-npm run deploy          # npm run build && wrangler pages deploy dist --project-name uos-fight-night
+npm run deploy          # npm run build && wrangler pages deploy dist --project-name dormschampion
 ```
 
-The site is served at `https://uos-fight-night.pages.dev`. If you move it to a custom domain,
+The site is served at `https://dormschampion.pages.dev`. If you move it to a custom domain,
 update the four absolute `og:` / `twitter:` URLs in `index.html` so link previews keep
 working. Also add the new domain to `site_url` and `additional_redirect_urls` in
 `supabase/config.toml`, then run `supabase config push` again.
@@ -148,7 +148,7 @@ working. Also add the new domain to `site_url` and `additional_redirect_urls` in
 ### 3. Visitor stats (Cloudflare Web Analytics)
 
 Visitor counts come from Cloudflare, not from the app. There is no code or tracking script to
-add. Turn it on once in the dashboard: **Workers & Pages → uos-fight-night → Metrics → Web
+add. Turn it on once in the dashboard: **Workers & Pages → dormschampion → Metrics → Web
 Analytics → Enable**. Cloudflare then adds its beacon to every Pages response and shows page
 views and visitors under **Analytics & Logs → Web Analytics**. It sets no cookies and stores no
 personal data, so the privacy notes below still hold. To turn it off, disable it in the same

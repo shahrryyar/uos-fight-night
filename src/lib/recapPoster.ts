@@ -478,7 +478,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, by: number, url: string, more
   ctx.font = `900 64px ${DISPLAY}`
   ctx.fillText('THAT’S THE CARD.', X0 + 28, by + 70)
   // the link gets the full line under the headline: beside it there was only room for ~19 Courier
-  // characters at 28px, which cut uos-fight-night.pages.dev
+  // characters at 28px, which cut dormschampion.pages.dev
   ctx.font = `700 28px ${BODY}`
   const lead = 'Every result at '
   ctx.fillText(lead, X0 + 28, by + 112)

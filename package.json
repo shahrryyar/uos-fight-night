@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name uos-fight-night"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name dormschampion"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

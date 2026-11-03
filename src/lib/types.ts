@@ -410,7 +410,7 @@ export interface CalloutPrefill {
 // ---------------------------------------------------------------------------
 // Wave C — C6 shop (fun points, cosmetic only)
 // ---------------------------------------------------------------------------
-export const SHOP_DISCLAIMER = 'Fun points — no cash value. Items are cosmetic.'
+export const SHOP_DISCLAIMER = 'Fun points only. Items are cosmetic.'
 export type ShopKind = 'name_color' | 'frame' | 'title'
 export type ShopItemCode =
   | 'color_gold' | 'color_crimson' | 'color_ice_blue' | 'color_neon_green'
