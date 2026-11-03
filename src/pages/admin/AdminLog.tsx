@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { AdminLogRow } from '../../lib/types'
+import { useNow } from '../../lib/hooks'
 import { Button, EmptyState, Loading } from '../../components/ui'
-import { LoadError, SectionHead, fmtAgo, fmtDate, must, useAction } from '../../components/admin/ui'
+import { LoadError, SectionHead } from '../../components/admin/ui'
+import { fmtAgo, fmtDate, must, useAction } from '../../components/admin/adminUtils'
 import { logSentence, type FightRef, type Lookups } from '../../components/admin/logSentence'
 
 const PAGE = 50
@@ -45,7 +47,7 @@ export default function AdminLog() {
     })))
   }, [fetchPage])
 
-  const now = Date.now()
+  const now = useNow(60_000).getTime()
 
   return (
     <section className="adm-section" aria-labelledby="log-h">

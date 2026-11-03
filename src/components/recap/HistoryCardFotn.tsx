@@ -4,7 +4,7 @@
  * The window check is a cheap client guess (last settle < 24h ago, no result row); get_fotn decides.
  */
 import { useEffect } from 'react'
-import type { FightRow } from '../../lib/hooks'
+import { useNow, type FightRow } from '../../lib/hooks'
 import { FotnMark, FotnPanel, invalidateFotnResults, useCardWrap, useFotnResults } from '../fotn'
 import '../fotn/fotn.css'
 
@@ -12,10 +12,11 @@ const DAY = 24 * 3600_000
 
 export default function HistoryCardFotn({ cardDate, fights, nameOf }:
   { cardDate: string; fights: FightRow[]; nameOf: (fighterId: string) => string | undefined }) {
+  const now = useNow(60_000)
   const results = useFotnResults()
   const res = results?.get(cardDate)
   const lastSettle = Math.max(0, ...fights.filter(f => f.status === 'settled' && f.settled_at).map(f => new Date(f.settled_at as string).getTime()))
-  const maybeOpen = !!results && !res && lastSettle > 0 && Date.now() - lastSettle < DAY + 15 * 60_000
+  const maybeOpen = !!results && !res && lastSettle > 0 && now.getTime() - lastSettle < DAY + 15 * 60_000
   const live = useCardWrap(cardDate, maybeOpen)
   const reload = live.reload
   useEffect(() => { if (live.data?.fotn.status === 'closed') invalidateFotnResults() }, [live.data?.fotn.status])

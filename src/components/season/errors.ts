@@ -1,4 +1,5 @@
-import { adminError } from '../admin/ui'
+import { adminError } from '../admin/adminUtils'
+
 
 /* Admin copy for the B7 refusals (API.md "New error codes"), falling back to the admin map. */
 const SEASON_CODES: Record<string, string> = {

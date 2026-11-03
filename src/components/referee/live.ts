@@ -157,7 +157,7 @@ export function useLiveFeed(fightId: string | undefined, enabled = true, hold?: 
 
   useEffect(() => {
     if (!fightId || !enabled) return
-    void reload()
+    void Promise.resolve().then(() => { void reload() })
     const ch = supabase.channel(`live:${fightId}:${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes' as never,
         { event: '*', schema: 'public', table: 'live_scores', filter: `fight_id=eq.${fightId}` } as never,

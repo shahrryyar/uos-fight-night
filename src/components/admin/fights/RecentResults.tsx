@@ -9,7 +9,8 @@ import type { Fighter } from '../../../lib/types'
 import { cancelCopy } from '../../../lib/copy'
 import { ArrowCounterClockwise, Button, Field, Input, Paper, Stamp, useToast } from '../../ui'
 import { kgNum, type AdminFight } from '../fightTypes'
-import { FormError, SectionHead, cap, fmtDate, focusFirstInvalid, must, useAction } from '../ui'
+import { FormError, SectionHead } from '../ui'
+import { cap, fmtDate, focusFirstInvalid, must, useAction } from '../adminUtils'
 
 interface Props { fights: AdminFight[]; byId: Record<string, Fighter>; onChanged: () => void }
 

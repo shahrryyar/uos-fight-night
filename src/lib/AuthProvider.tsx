@@ -1,23 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, usernameToEmail } from './supabase'
 import type { Profile } from './types'
-
-/**
- * Accounts are created by admins only (edge fn `admin-create-user`).
- * There is no self-signup: members just log in with username + password.
- */
-interface AuthCtx {
-  session: Session | null
-  profile: Profile | null
-  isAdmin: boolean
-  loading: boolean
-  signIn: (username: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
-  refreshProfile: () => Promise<void>
-}
-
-const Ctx = createContext<AuthCtx | null>(null)
+import { AuthCtxProvider } from './authContext'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -51,25 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => { await supabase.auth.signOut() }
 
   return (
-    <Ctx.Provider value={{
+    <AuthCtxProvider value={{
       session, profile, loading,
       isAdmin: profile?.role === 'admin' && profile.active,
       signIn, signOut,
       refreshProfile: () => loadProfile(session?.user.id),
     }}>
       {children}
-    </Ctx.Provider>
+    </AuthCtxProvider>
   )
 }
 
-export function useAuth() {
-  const v = useContext(Ctx)
-  if (!v) throw new Error('useAuth outside AuthProvider')
-  return v
-}
-
-/** The name shown on screens: admin-set display_name, falling back to @username. */
-export function shownName(p: Pick<Profile, 'display_name' | 'username'> | null | undefined): string {
-  if (!p) return ''
-  return p.display_name?.trim() || `@${p.username}`
-}
+export default AuthProvider

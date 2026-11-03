@@ -5,7 +5,8 @@ import { useBalance } from '../lib/hooks'
 import { BalanceContext } from '../lib/balance'
 import { fmtNum } from '../lib/copy'
 import { Logo, RegaCredit } from './brand'
-import { isRefereeRole } from './referee/RequireReferee'
+import { isRefereeRole } from './referee/refereeAuth'
+
 import { CalendarDot, ClockCounterClockwise, Ranking, UserCircle, UsersThree, Loading, type IconComponent } from './ui'
 
 const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] = [

@@ -38,13 +38,19 @@ export default function CalloutForm({ myFighterId, roster, busyWith, myOpen, ini
   const [targetErr, setTargetErr] = useState<string | null>(null)
   const [rematch, setRematch] = useState<Rematch | null>(null)
   const [rematchErr, setRematchErr] = useState<string | null>(null)
+  const [prevRematchOf, setPrevRematchOf] = useState(rematchOf)
+  if (prevRematchOf !== rematchOf) {
+    setPrevRematchOf(rematchOf)
+    setRematch(null)
+    setRematchErr(null)
+  }
   const act = useCalloutAction()
   const headRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => { headRef.current?.focus() }, [rematchOf])
 
   useEffect(() => {
-    if (!rematchOf) { setRematch(null); setRematchErr(null); return }
+    if (!rematchOf) return
     let live = true
     void (async () => {
       const { data, error } = await supabase.from('fights').select('*').eq('id', rematchOf).maybeSingle()

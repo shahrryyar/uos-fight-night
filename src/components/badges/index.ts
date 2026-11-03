@@ -1,2 +1,3 @@
-export { BadgeSeal, BadgeChip, BadgeList, BadgeSection, useBadges } from './Badges'
+export { BadgeSeal, BadgeChip, BadgeList, BadgeSection } from './Badges'
+export { useBadges } from './useBadges'
 export { badgeIconMarkup } from './badgeIcons'

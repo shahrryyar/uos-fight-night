@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adminError } from './ui'
+import { adminError } from './adminUtils'
 
 describe('adminError', () => {
   it('rewrites pick/points codes in fun-points words', () => {

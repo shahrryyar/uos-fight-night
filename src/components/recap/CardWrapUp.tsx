@@ -13,8 +13,12 @@ export default function CardWrapUp({ cardDate, sig }: { cardDate: string; /** ch
   const st = useCardWrap(cardDate)
   const hid = useId()
   const [fotn, setFotn] = useState<FotnState | null>(null)
+  const [prevData, setPrevData] = useState(st.data)
+  if (prevData !== st.data) {
+    setPrevData(st.data)
+    setFotn(null)
+  }
   const reload = st.reload
-  useEffect(() => { setFotn(null) }, [st.data])
   const seen = useRef(sig)
   useEffect(() => { if (sig !== seen.current) { seen.current = sig; void reload() } }, [sig, reload])
 

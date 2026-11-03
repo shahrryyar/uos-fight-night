@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useSignedPhoto } from '../FighterPhoto'
-import { BONE_RGB, TONER_RGB, tryHalftoneUrl, whenIdle } from '../../lib/halftone'
+import { BONE_RGB, TONER_RGB, initialsOf, tryHalftoneUrl, whenIdle } from '../../lib/halftone'
 import { cx } from './cx'
 
 export interface HalftonePhotoProps {
@@ -31,12 +31,6 @@ export interface HalftonePhotoProps {
   /** extra sr text, e.g. "Red corner" */
   alt?: string
   className?: string
-}
-
-export function initialsOf(name: string) {
-  const p = name.replace(/["'“”‘’]/g, '').trim().split(/\s+/).filter(Boolean)
-  if (!p.length) return '?'
-  return (p.length === 1 ? p[0].slice(0, 2) : p[0][0] + p[p.length - 1][0]).toUpperCase()
 }
 
 function ratio(aspect?: string) {

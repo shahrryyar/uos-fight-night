@@ -112,7 +112,13 @@ export function useSiteStatusSource(uid: string | undefined, authReady: boolean)
 
   // first read right away (the landing page must not wait on auth), and again once the session is
   // known and whenever the viewer changes (sign in / out)
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    let ignore = false
+    void Promise.resolve().then(() => {
+      if (!ignore) void load()
+    })
+    return () => { ignore = true }
+  }, [load])
 
   // 30s poll while visible, plus focus / visibility / reconnect
   useEffect(() => {

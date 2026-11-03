@@ -8,9 +8,10 @@ import { supabase } from '../../../lib/supabase'
 import type { Fighter, Side } from '../../../lib/types'
 import { Button, Field, Input, Paper, Seg, Select, Stepper, WarningOctagon, useToast } from '../../ui'
 import type { AdminFight } from '../fightTypes'
+import { FieldGroup, FormError } from '../ui'
 import {
-  FieldGroup, FormError, cardDateOf, fmtCardDate, focusFirstInvalid, fromLocalInput, must, parseKg, toLocalInput, useAction,
-} from '../ui'
+  cardDateOf, fmtCardDate, focusFirstInvalid, fromLocalInput, must, parseKg, toLocalInput, useAction,
+} from '../adminUtils'
 
 function defaultStart() {
   const d = new Date(Date.now() + 24 * 3600_000)

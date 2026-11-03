@@ -1,7 +1,7 @@
 export { default as CalloutForm } from './CalloutForm'
 export { default as CalloutRow } from './CalloutRow'
 export { default as IncomingCallout } from './IncomingCallout'
-export { default as RematchButton, isRematchLoser } from './RematchButton'
+export { default as RematchButton } from './RematchButton'
 export { default as CallOutButton, CalloutsLink } from './CallOutButton'
 export { useCalloutBoard, useCalloutAction } from './useCallouts'
 export * from './format'

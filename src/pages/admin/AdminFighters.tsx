@@ -8,7 +8,8 @@ import {
   Button, CaretLeft, CaretRight, EmptyState, Field, HalftonePhoto, Input, Loading, Paper, Plus, Seg, Stamp, Trash,
   UploadSimple, WarningOctagon, X, useToast,
 } from '../../components/ui'
-import { FieldGroup, FormError, LoadError, SectionHead, focusFirstInvalid, must, useAction } from '../../components/admin/ui'
+import { FieldGroup, FormError, LoadError, SectionHead } from '../../components/admin/ui'
+import { focusFirstInvalid, must, useAction } from '../../components/admin/adminUtils'
 import { kgLabel } from '../../components/admin/fightTypes'
 import { AwardBelt, ChampBelt, useChampion } from '../../components/belt'
 

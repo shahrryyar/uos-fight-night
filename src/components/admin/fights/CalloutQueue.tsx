@@ -13,7 +13,8 @@ import type { CalloutPrefill, Fighter } from '../../../lib/types'
 import { Button, Field, FieldError, Input, Paper, Seg, Stamp, Stepper, Trash, useToast } from '../../ui'
 import { CALLOUT_STAMP, calloutStamp, calloutTitle, fmtShortDay, isOpenStatus, quoted, stripHidden, useCalloutAction, useCalloutBoard, type BoardRow } from '../../callouts'
 import type { AdminFight } from '../fightTypes'
-import { FieldGroup, SectionHead, LoadError, cardDateOf, fmtCardDate, fromLocalInput, toLocalInput, useConfirm } from '../ui'
+import { FieldGroup, SectionHead, LoadError } from '../ui'
+import { cardDateOf, fmtCardDate, fromLocalInput, toLocalInput, useConfirm } from '../adminUtils'
 import '../../callouts/callouts.css'
 
 interface Props {

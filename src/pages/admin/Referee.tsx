@@ -10,7 +10,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import type { RefFinishedState } from '../../components/referee/RefList'
-import { must, useAsync } from '../../lib/hooks'
+import { must, useAsync, useNow } from '../../lib/hooks'
 import type { Fighter } from '../../lib/types'
 import type { AdminFight } from '../../components/admin/fightTypes'
 import { ButtonLink, CaretLeft, EmptyState, Loading, useToast } from '../../components/ui'
@@ -33,6 +33,7 @@ export default function Referee() {
   const { profile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
+  const now = useNow(1000)
   // C2: a referee (not admin) comes from and goes back to the ref list, and can't record results
   const home = isAdmin ? { to: '/admin/fights', label: 'Fights', back: 'Back to fights' } : { to: '/admin/ref', label: 'Ref', back: 'Back to the ref list' }
   const uid = profile?.id
@@ -106,7 +107,7 @@ export default function Referee() {
   const isParticipant = !!profile?.fighter_id && [f.red_fighter_id, f.blue_fighter_id].includes(profile.fighter_id)
   if (isParticipant) return blocked('Not your bout to ref', "You're linked to a fighter in this bout, so someone else has to run the scoreboard.")
   if (d.hasPick) return blocked('Not your bout to ref', 'You have points on this bout, so someone else has to run the scoreboard.')
-  const pastLock = new Date(f.lock_at).getTime() <= Date.now()
+  const pastLock = new Date(f.lock_at).getTime() <= now.getTime()
   if (f.status === 'scheduled' || (f.status === 'open' && !pastLock)) {
     return blocked('Lock picks first', isAdmin
       ? 'The scoreboard opens once picks are locked, so nobody can pick after the first point. Lock picks from the bout sheet.'

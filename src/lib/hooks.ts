@@ -34,7 +34,13 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
     }
   }, [])
 
-  useEffect(() => { void run(false) }, deps) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let ignore = false
+    void Promise.resolve().then(() => {
+      if (!ignore) void run(false)
+    })
+    return () => { ignore = true }
+  }, deps) // eslint-disable-line react-hooks/exhaustive-deps
   const reload = useCallback(() => run(true), [run])
   return { data, error, loading, reload }
 }

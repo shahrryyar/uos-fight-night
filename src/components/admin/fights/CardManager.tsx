@@ -7,7 +7,8 @@ import { boutSort } from '../../../lib/hooks'
 import type { Fighter } from '../../../lib/types'
 import { Button, CaretDown, CaretUp, StatusStamp, useToast } from '../../ui'
 import type { AdminFight } from '../fightTypes'
-import { LoadError, SectionHead, fmtCardDate, must, useAction } from '../ui'
+import { LoadError, SectionHead } from '../ui'
+import { fmtCardDate, must, useAction } from '../adminUtils'
 
 interface Props { cardFights: AdminFight[]; byId: Record<string, Fighter>; onChanged: () => void }
 

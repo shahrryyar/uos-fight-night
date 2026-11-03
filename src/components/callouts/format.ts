@@ -19,6 +19,20 @@ export const isCalledOff = (c: BoardRow) => c.status === 'booked' && c.fight_sta
 /** API: a challenger may hold at most 3 open callouts (pending / accepted / approved). */
 export const CALLOUT_OPEN_LIMIT = 3
 
+export type RematchFight = {
+  id: string
+  status: string
+  winner_side: string | null
+  red_fighter_id: string
+  blue_fighter_id: string
+}
+
+export function isRematchLoser(fight: RematchFight, fighterId: string | null | undefined): boolean {
+  if (!fighterId || fight.status !== 'settled' || !fight.winner_side) return false
+  const loser = fight.winner_side === 'red' ? fight.blue_fighter_id : fight.red_fighter_id
+  return loser === fighterId
+}
+
 /** Stamp text per status. Every stamp is real state (DESIGN 11.7). */
 export const CALLOUT_STAMP: Record<CalloutStatus, string> = {
   pending: 'Called out',
@@ -65,6 +79,7 @@ export function calloutError(e: unknown): string {
  * spaces, LRM/RLM, embeddings and overrides, isolates, BOM, soft hyphen, Hangul fillers, tag characters.
  * ZWJ (U+200D) and variation selectors stay: emoji need them.
  */
+// eslint-disable-next-line eslint/no-misleading-character-class
 const HIDDEN = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B\u200C\u200E\u200F\u2028-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0\uFFF9-\uFFFB\u{E0000}-\u{E007F}]/gu
 
 /** Drops characters that would hide or reverse text on the board. */

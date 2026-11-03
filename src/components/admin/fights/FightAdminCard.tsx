@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../lib/auth'
+import { useNow } from '../../../lib/hooks'
 import type { FightPool, Fighter, Side, WinMethod } from '../../../lib/types'
 import { fmtNum } from '../../../lib/copy'
 import {
@@ -17,7 +18,8 @@ import {
   Stamp, StatusStamp, Stepper, Timer, WarningOctagon, useToast,
 } from '../../ui'
 import { FINISH_MOVES, kgNum, type AdminFight } from '../fightTypes'
-import { FieldGroup, FormError, cap, focusFirstInvalid, fmtTime, must, parseKg, useAction } from '../ui'
+import { FieldGroup, FormError } from '../ui'
+import { cap, focusFirstInvalid, fmtTime, must, parseKg, useAction } from '../adminUtils'
 
 const METHODS: WinMethod[] = ['pin', 'submission', 'decision']
 type CancelChoice = 'cancelled' | 'no_contest'
@@ -41,6 +43,7 @@ interface Checked { winner: Side; method: WinMethod; rs: number; bs: number; rk:
 export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onChanged, prefill }: Props) {
   const { profile } = useAuth()
   const toast = useToast()
+  const now = useNow(5000)
   const [mode, setMode] = useState<Mode>(prefill && (fight.status === 'open' || fight.status === 'locked') ? 'settle' : 'none')
   // the prefill is read once at mount (AdminFights drops it right after), so remember where the numbers came from
   const [fromBoard] = useState(!!prefill)
@@ -63,7 +66,7 @@ export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onC
 
   const rName = red?.nickname ?? 'Red corner', bName = blue?.nickname ?? 'Blue corner'
   const isParticipant = !!profile?.fighter_id && [fight.red_fighter_id, fight.blue_fighter_id].includes(profile.fighter_id)
-  const pastLock = new Date(fight.lock_at).getTime() <= Date.now()
+  const pastLock = new Date(fight.lock_at).getTime() <= now.getTime()
   const scheduled = fight.status === 'scheduled'
   // admin_force_open refuses (FIGHTER_HAS_ACCOUNT) while a corner linked to an
   // active member hasn't said yes: that fighter must answer the booking themselves.

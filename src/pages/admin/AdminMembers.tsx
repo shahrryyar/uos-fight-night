@@ -8,9 +8,10 @@ import {
   ArrowCounterClockwise, Button, CaretDown, CaretRight, Copy, EmptyState, Field, Input, Loading, MagnifyingGlass, Paper,
   Seg, Select, Stamp, UserPlus, useToast,
 } from '../../components/ui'
+import { FieldGroup, FormError, LoadError, SectionHead } from '../../components/admin/ui'
 import {
-  FieldGroup, FormError, LoadError, SectionHead, copyText, focusFirstInvalid, functionError, generatePassword, must, useAction, useConfirm,
-} from '../../components/admin/ui'
+  copyText, focusFirstInvalid, functionError, generatePassword, must, useAction, useConfirm,
+} from '../../components/admin/adminUtils'
 
 const nameOf = (m: Pick<Profile, 'display_name' | 'username'>) => m.display_name?.trim() || m.username
 

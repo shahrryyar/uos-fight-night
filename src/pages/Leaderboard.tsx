@@ -8,7 +8,7 @@ import type { BettorRank, Fighter } from '../lib/types'
 import { ChampBelt, ChampionCard } from '../components/belt'
 import { Alert, CaretRight, EmptyState, HalftonePhoto, Loading, Paper, Stamp, TabPanel, Tabs } from '../components/ui'
 import MemberName from '../components/MemberName'
-import { RANK_NEED, RankScopeToggle, SeasonsLink, scopeRows, useRankScope } from '../components/season/RankScope'
+import { RANK_NEED, RankScopeToggle, SeasonsLink, scopeRows, useRankScope } from '../components/season'
 
 type Tab = 'fighters' | 'pickers'
 

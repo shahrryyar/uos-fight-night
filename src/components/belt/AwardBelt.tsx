@@ -9,23 +9,11 @@ import { fmtDay } from '../../lib/hooks'
 import type { AwardBeltResult, Fighter } from '../../lib/types'
 import { ChampionBelt } from '../brand'
 import { Button, Field, Input, Paper, useToast } from '../ui'
-import { FormError, adminError } from '../admin/ui'
+import { FormError } from '../admin/ui'
 import { invalidateChampion, useChampion } from './useChampion'
-import { defensesText } from './reign'
+import { defensesText, beltError } from './reign'
 import './belt.css'
 
-const BELT_CODES: Record<string, string> = {
-  NO_CHAMPION: 'Nobody holds the belt, so there is nothing to vacate.',
-  ALREADY_CHAMPION: 'That fighter already holds the belt.',
-  INVALID_NOTE: 'Keep the note to 200 characters.',
-  PARTICIPANT: 'You are linked to this fighter or the champion, so another admin has to move the belt.',
-  FIGHTER_NOT_FOUND: 'That fighter no longer exists.',
-}
-export function beltError(e: unknown): string {
-  const raw = String((e as { message?: string })?.message ?? e ?? '')
-  for (const tok of raw.match(/[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+/g) ?? []) if (BELT_CODES[tok]) return BELT_CODES[tok]
-  return adminError(e)
-}
 
 type Mode = 'idle' | 'award' | 'vacate'
 

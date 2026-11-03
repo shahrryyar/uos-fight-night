@@ -23,3 +23,18 @@ export const endHow = (reason: BeltEndReason | null) =>
   : reason === 'vacated' ? 'Belt vacated by an admin'
   : reason === 'reassigned' ? 'Belt moved by an admin'
   : 'Still holds it'
+
+export const BELT_CODES: Record<string, string> = {
+  NO_CHAMPION: 'Nobody holds the belt, so there is nothing to vacate.',
+  ALREADY_CHAMPION: 'That fighter already holds the belt.',
+  INVALID_NOTE: 'Keep the note to 200 characters.',
+  PARTICIPANT: 'You are linked to this fighter or the champion, so another admin has to move the belt.',
+  FIGHTER_NOT_FOUND: 'That fighter no longer exists.',
+}
+
+export function beltError(e: unknown): string {
+  const raw = String((e as { message?: string })?.message ?? e ?? '')
+  for (const tok of raw.match(/[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+/g) ?? []) if (BELT_CODES[tok]) return BELT_CODES[tok]
+  return raw || 'Failed to update title belt.'
+}
+

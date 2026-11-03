@@ -6,7 +6,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
-import { must, useAsync, usePoll, useRealtime, fmtTime, fmtDayTime, boutSort, todayCard } from '../../lib/hooks'
+import { must, useAsync, useNow, usePoll, useRealtime, fmtTime, fmtDayTime, boutSort, todayCard } from '../../lib/hooks'
 import type { Fight, Fighter, LiveScore } from '../../lib/types'
 import { ButtonLink, CaretRight, EmptyState, Loading, Alert, Stamp, Timer } from '../ui'
 import type { FinishPrefill } from './Scoreboard'
@@ -46,7 +46,7 @@ export default function RefList() {
   useRealtime('ref-list', [{ table: 'fights' }, { table: 'live_scores' }], () => void data.reload())
   usePoll(() => void data.reload(), 30_000) // open bouts cross their lock time without a row change
 
-  const now = Date.now()
+  const now = useNow(5000).getTime()
   const all = (data.data?.fights ?? []).slice().sort((a, b) => a.card_date === b.card_date ? boutSort(a, b) : a.card_date < b.card_date ? -1 : 1)
   const ready = all.filter(f => f.status === 'locked' || new Date(f.lock_at).getTime() <= now)
   const later = all.filter(f => !ready.includes(f))

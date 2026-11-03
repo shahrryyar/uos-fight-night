@@ -1,4 +1,5 @@
-export { default as FotnPanel, fotnError, closesIn, boutName } from './FotnPanel'
+export { default as FotnPanel } from './FotnPanel'
+export { fotnError, closesIn, boutName } from './fotnUtils'
 export type { FotnPanelProps } from './FotnPanel'
 export { default as FotnMark } from './FotnMark'
 export { StarMark } from './StarMark'

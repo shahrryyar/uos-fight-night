@@ -8,15 +8,13 @@
  * <ToastProvider> is mounted once in main.tsx. It sits 76px above the bottom when the tab bar is
  * on screen, 16px otherwise.
  */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, type IconComponent } from './Icon'
+import { Ctx, type ShowToast } from './toastContext'
 
 interface ToastMsg { id: number; text: ReactNode; icon: IconComponent; tabbar: boolean }
-export type ShowToast = (text: ReactNode, opts?: { icon?: IconComponent; ms?: number }) => void
+export type { ShowToast }
 
-const Ctx = createContext<ShowToast>(() => {})
-
-export function useToast(): ShowToast { return useContext(Ctx) }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [msg, setMsg] = useState<ToastMsg | null>(null)

@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { fmtDelta, fmtNum } from '../../lib/copy'
 import type { AdminLogRow } from '../../lib/types'
-import { fmtCardDate } from './ui'
+import { fmtCardDate } from './adminUtils'
 
 type Dict = Record<string, unknown>
 export interface FightRef { id: string; red_fighter_id: string; blue_fighter_id: string; card_date: string | null }

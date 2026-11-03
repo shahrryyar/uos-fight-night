@@ -10,7 +10,8 @@ import CardManager from '../../components/admin/fights/CardManager'
 import RecentResults from '../../components/admin/fights/RecentResults'
 import CalloutQueue from '../../components/admin/fights/CalloutQueue'
 import { Button, EmptyState, Loading } from '../../components/ui'
-import { LoadError, SectionHead, fmtCardDate, must, useAction } from '../../components/admin/ui'
+import { LoadError, SectionHead } from '../../components/admin/ui'
+import { fmtCardDate, must, useAction } from '../../components/admin/adminUtils'
 import type { SettlePrefillState } from './Referee'
 
 const ACTIVE = ['scheduled', 'open', 'locked']
@@ -39,7 +40,11 @@ export default function AdminFights() {
       navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
     }
   }, [location, navigate])
-  useEffect(() => { if (loaded && prefill) setPrefill(undefined) }, [loaded, prefill])
+  const [consumed, setConsumed] = useState(false)
+  if (loaded && !consumed) {
+    setConsumed(true)
+    if (prefill) setPrefill(undefined)
+  }
 
   const refresh = useCallback(() => loadRun(async () => {
     const [fr, active, done, pr] = await Promise.all([

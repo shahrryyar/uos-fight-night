@@ -21,6 +21,12 @@ export interface HalftoneOpts {
 export const TONER_RGB: [number, number, number] = [26, 25, 23]
 export const BONE_RGB: [number, number, number] = [244, 241, 234]
 
+export function initialsOf(name: string) {
+  const p = name.replace(/["'“”‘’]/g, '').trim().split(/\s+/).filter(Boolean)
+  if (!p.length) return '?'
+  return (p.length === 1 ? p[0].slice(0, 2) : p[0][0] + p[p.length - 1][0]).toUpperCase()
+}
+
 const cache = new Map<string, string>() // key -> object URL (kept for the session)
 const inflight = new Map<string, Promise<string>>()
 

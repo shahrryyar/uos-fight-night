@@ -9,8 +9,7 @@
  *   <BadgeSection/> heading + loading/error/empty + list + "how to earn the rest" for a fighter or member
  */
 import type { CSSProperties } from 'react'
-import { supabase } from '../../lib/supabase'
-import { fmtDay, must, useAsync } from '../../lib/hooks'
+import { fmtDay } from '../../lib/hooks'
 import { BADGES, type BadgeCode, type BadgeKind, type BadgeSummary } from '../../lib/types'
 import { Alert, cx } from '../ui'
 import { badgeIconMarkup } from './badgeIcons'
@@ -60,14 +59,8 @@ export function BadgeList({ badges }: { badges: BadgeSummary[] }) {
     </ul>
   )
 }
+import { useBadges } from './useBadges'
 
-/** list_badges(p_kind, p_id): one row per code earned, catalog order. */
-export function useBadges(kind: BadgeKind, id: string | null | undefined) {
-  return useAsync(async () => {
-    if (!id) return [] as BadgeSummary[]
-    return must(await supabase.rpc('list_badges', { p_kind: kind, p_id: id })) as BadgeSummary[]
-  }, [kind, id])
-}
 
 const EMPTY: Record<BadgeKind, { you: string; them: string }> = {
   fighter: { you: 'No badges yet. Your first win earns First Blood.', them: 'No badges yet. The first win earns First Blood.' },

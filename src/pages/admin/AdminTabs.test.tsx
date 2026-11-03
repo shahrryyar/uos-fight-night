@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import AdminTabs, { adminTabs } from './AdminTabs'
+import AdminTabs from './AdminTabs'
+import { adminTabs } from './adminNav'
 
 // Mirrors App.tsx: AdminHome (and so AdminTabs) lives under the `/admin/*` splat route.
 const hrefsAt = (url: string) => {
