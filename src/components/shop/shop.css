@@ -1,0 +1,90 @@
+/* Shop (C6). Lists on ink (material C), the title form on paper (B). No tape: nothing here is the
+   one actionable thing of a night. Square corners, no shadows, no glow. */
+
+.pg-shop .lede { margin-top: 8px; color: var(--color-bone-2); max-width: var(--measure, 34rem); text-wrap: pretty; }
+.pg-shop .shop-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; color: var(--color-bone); }
+.pg-shop .shop-note svg { flex: none; font-size: 1.125rem; margin-top: 1px; color: var(--color-bone-2); }
+
+/* mirror: your name as it prints on the wall and on paper (both surfaces, both inks) */
+.shop-mirror { margin-top: 22px; padding-top: 12px; box-shadow: inset 0 var(--rule-heavy) 0 var(--color-bone); }
+.shop-mirror-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.shop-mirror-head .label { color: var(--color-bone-2); }
+.shop-mirror-head .data b { font-size: var(--text-data-lg); }
+.shop-mirror-pair { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 10px; }
+.shop-mirror-pair p { margin: 0; min-height: 64px; display: flex; align-items: center; padding: 10px 14px; text-wrap: balance; }
+.shop-mirror-pair .on-ink { box-shadow: inset 0 0 0 var(--rule) var(--color-ink-rule); background: var(--color-ink); }
+.shop-mirror-pair .on-paper { background: url(/textures/paper-grain.png) 0 0 / 256px 256px, var(--color-bone); background-blend-mode: multiply; color: var(--color-toner); }
+
+.shop-sec .t-head { margin: 0; }
+.shop-sec-help { margin-top: 4px; color: var(--color-bone-2); }
+
+/* tiles: 2 columns (171px at 390, 136px at 320), outlined like the pick sides */
+.shop-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.shop-tile {
+  display: grid; grid-template-rows: auto auto 1fr; gap: 8px; padding: 10px;
+  box-shadow: inset 0 0 0 var(--rule) var(--color-ink-rule);
+}
+.shop-tile.is-owned { box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+.shop-tile.is-on { box-shadow: inset 0 0 0 var(--rule-heavy) var(--color-bone); }
+.shop-tile .shop-name { margin: 0; text-wrap: balance; }
+.shop-prev { min-height: 64px; display: flex; align-items: center; overflow-wrap: anywhere; }
+
+/* colour swatch: same "Aa" in the ink-surface ink (left) and the paper-surface ink (right) */
+.sw { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 64px; box-shadow: inset 0 0 0 var(--rule) var(--color-ink-rule); }
+.sw > span { display: grid; place-items: center; font: 900 2rem/1 var(--font-display); }
+.sw-ink { background: var(--color-ink-2); }
+.sw-paper { background: url(/textures/paper-grain.png) 0 0 / 256px 256px, var(--color-bone); background-blend-mode: multiply; }
+
+/* frame preview: your name in the frame, on ink */
+.shop-tile--frame .shop-prev { padding: 4px 2px; }
+.shop-tile--frame .shop-prev .t-sub { font-size: 1.125rem; text-wrap: balance; }
+@media (max-width: 359px) { .shop-tile--frame .shop-prev .t-sub { font-size: 1rem; } }
+
+/* actions inside a tile / row */
+.shop-act { display: grid; gap: 8px; align-content: end; justify-items: start; }
+.shop-act .btn--sm { width: 100%; }
+.shop-act .stamp { justify-self: start; }
+.shop-act .shop-price, .shop-act .shop-have { margin: 0; color: var(--color-bone); }
+.shop-act .shop-price b { font-size: var(--text-data-lg); }
+.shop-act .shop-have { color: var(--color-bone-2); }
+.shop-act .shop-short { margin: 0; color: var(--color-bone-2); min-height: 44px; display: flex; align-items: center; }
+.shop-confirm .t-help { margin: 0; color: var(--color-bone); text-wrap: pretty; }
+.shop-err .field-error { color: var(--color-bone); }
+
+/* titles: rows on ink. Below 360px the action drops under the title. */
+.shop-titles { margin-top: 10px; }
+.shop-title { grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto); align-items: center; padding-block: 12px; }
+.shop-title-main { min-width: 0; display: grid; gap: 4px; }
+.shop-title .shop-name { text-wrap: balance; overflow-wrap: anywhere; }
+.shop-title-prev { color: var(--color-bone-2); font: 700 var(--text-body-sm)/1.3 var(--font-body); }
+.shop-title .shop-act { justify-items: stretch; }
+@media (max-width: 359px) {
+  .shop-title { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .shop-grid { gap: 8px; }
+  .shop-tile { padding: 8px; }
+}
+
+/* custom title request (paper) */
+.shop-req { margin-top: 18px; }
+.shop-req-top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.shop-req-status { margin-top: 10px; text-wrap: pretty; }
+.shop-req-status .t-help { margin-top: 4px; }
+.shop-req-form { display: grid; gap: 14px; margin-top: 12px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+.shop-req-form .t-help { margin: 0; text-wrap: pretty; }
+.shop-req-review { display: grid; gap: 10px; margin-top: 12px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+.shop-req-review .t-body { margin: 0; text-wrap: pretty; overflow-wrap: anywhere; }
+.shop-req-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px; }
+.shop-req-actions .btn { width: 100%; min-width: 0; white-space: normal; text-wrap: balance; }
+
+/* admin: title requests (on ink; the reject reason form drops onto paper) */
+.adm-shop { margin-top: 24px; }
+.adm-shop .adm-empty { padding: 12px 0; color: var(--color-bone-2); }
+.adm-tr { display: grid; gap: 10px; padding: 14px 0; }
+.adm-tr-main { display: grid; gap: 4px; min-width: 0; }
+.adm-tr-main .t-sub { overflow-wrap: anywhere; text-wrap: balance; }
+.adm-tr-main .data { color: var(--color-bone-2); }
+.adm-tr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.adm-tr-actions .btn { width: 100%; }
+.adm-tr-panel { display: grid; gap: 12px; }
+.adm-tr-done { grid-template-columns: minmax(0, 1fr) auto; }
+.adm-tr-done .data { color: var(--color-bone-2); }

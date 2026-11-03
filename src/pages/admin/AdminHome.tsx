@@ -6,9 +6,11 @@ import AdminMembers from './AdminMembers'
 import AdminPoints from './AdminPoints'
 import AdminLog from './AdminLog'
 import AdminSeason from './AdminSeason'
+import AdminShop from './AdminShop'
 import AdminTabs, { ADMIN_HOME } from './AdminTabs'
 import { Loading } from '../../components/ui'
 import '../../components/admin/admin.css'
+import { LockdownButton } from '../../components/lockdown'
 
 // The referee scoreboard is a separate full-screen view (B4), loaded only when a ref opens it.
 const Referee = lazy(() => import('./Referee'))
@@ -18,7 +20,8 @@ const Referee = lazy(() => import('./Referee'))
 function AdminSections() {
   return (
     <div className="pg-admin">
-      <h1 className="t-title">Admin</h1>
+      {/* C1: the panic button sits in the header of every admin tab */}
+      <div className="ld-head"><h1 className="t-title">Admin</h1><LockdownButton /></div>
       <AdminTabs />
       <Routes>
         <Route index element={<Navigate to={ADMIN_HOME} replace />} />
@@ -28,6 +31,7 @@ function AdminSections() {
         <Route path="points" element={<AdminPoints />} />
         <Route path="log" element={<AdminLog />} />
         <Route path="season" element={<AdminSeason />} />
+        <Route path="shop" element={<AdminShop />} />
         <Route path="*" element={<Navigate to={ADMIN_HOME} replace />} />
       </Routes>
     </div>

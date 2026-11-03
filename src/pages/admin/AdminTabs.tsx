@@ -1,4 +1,5 @@
 import { NavTabs } from '../../components/ui'
+import './AdminTabs.css'
 
 // Absolute paths on purpose: AdminHome is mounted under the `/admin/*` splat route, and
 // React Router v7 resolves relative links against the full splat URL, so `to="members"`
@@ -12,6 +13,7 @@ export const adminTabs = [
   { to: '/admin/points', label: 'Points' },
   { to: '/admin/log', label: 'Log' },
   { to: '/admin/season', label: 'Season' },
+  { to: '/admin/shop', label: 'Shop' },
 ] as const
 
 /** `nav.tabs.tabs--5`: five equal columns that all fit at 320px. NavLink sets aria-current="page",

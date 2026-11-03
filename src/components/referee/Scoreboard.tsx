@@ -32,6 +32,8 @@ interface Props {
   onFinish: (p: FinishPrefill) => void
   /** the server says the bout moved on (settled / called off): parent reloads the fight */
   onFightGone: () => void
+  /** C2: false for a referee (no admin). Finish then stops the clock and hands back to the ref list. */
+  canSettle?: boolean
 }
 
 interface Op { id: number; action: LiveAction; value?: number; at: number }
@@ -59,7 +61,7 @@ function applyOp(s: LiveScore, op: Op): LiveScore {
 
 const GONE = ['This bout already has a result.', 'This bout was called off.', 'Lock the fight before scoring it.']
 
-export default function Scoreboard({ fightId, redName, blueName, boutLabel, back, onFinish, onFightGone }: Props) {
+export default function Scoreboard({ fightId, redName, blueName, boutLabel, back, onFinish, onFightGone, canSettle = true }: Props) {
   const [pending, setPending] = useState<Op[]>([])
   const pendingRef = useRef<Op[]>([])
   useEffect(() => { pendingRef.current = pending })
@@ -310,11 +312,13 @@ export default function Scoreboard({ fightId, redName, blueName, boutLabel, back
                 <span className="c-red">{board.red_score}</span><span className="dash" aria-hidden="true">–</span><span className="c-blue">{board.blue_score}</span>
               </p>
               <p className="t-help">
-                {board.running ? 'The clock stops. ' : ''}The result form opens with <b>{board.round} round{board.round === 1 ? '' : 's'}</b> and this score filled in. You pick the winner and how it ended there.
+                {canSettle
+                  ? <>{board.running ? 'The clock stops. ' : ''}The result form opens with <b>{board.round} round{board.round === 1 ? '' : 's'}</b> and this score filled in. You pick the winner and how it ended there.</>
+                  : <>{board.running ? 'The clock stops. ' : ''}The bout ends here: this score after <b>{board.round} round{board.round === 1 ? '' : 's'}</b>. An admin records the winner and how it ended.</>}
               </p>
               <div className="ref-sheet-actions">
                 <Button variant="ghost" onClick={() => setSheet('none')}>Back</Button>
-                <Button onClick={() => void doFinish()} busy={busy === 'pause' || pending.some(o => o.action === 'pause')} busyLabel="Stopping">Go to result</Button>
+                <Button onClick={() => void doFinish()} busy={busy === 'pause' || pending.some(o => o.action === 'pause')} busyLabel="Stopping">{canSettle ? 'Go to result' : 'Finish bout'}</Button>
               </div>
             </>
           )}

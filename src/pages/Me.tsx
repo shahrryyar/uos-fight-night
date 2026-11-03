@@ -6,6 +6,7 @@ import { cardDateOf, displayName, fmtDay, fmtDayTime, fmtTime, must, todayCard, 
 import { BET_STATUS, LEDGER_REASON, fmtDelta, fmtNum } from '../lib/copy'
 import type { Bet, LedgerRow } from '../lib/types'
 import { BadgeSection } from '../components/badges'
+import MemberName from '../components/MemberName'
 import {
   Alert, Button, ButtonLink, EmptyState, Field, FieldError, Loading, PasswordInput, SignOut, Stamp, Stub, TabPanel, Tabs, useToast,
 } from '../components/ui'
@@ -28,7 +29,7 @@ export default function Me() {
 
   return (
     <div className="pg-me">
-      <h1 className="t-title"><bdi>{displayName(profile, '…')}</bdi></h1>
+      <h1 className="t-title"><MemberName userId={profile?.id} name={displayName(profile, '…')} title="below" /></h1>
       {profile?.username && <p className="data c-2" style={{ marginTop: 6 }}>Login: {profile.username}{profile.role === 'admin' && ' · admin'}</p>}
 
       <Stub as="section" className="wallet" aria-label="Your points">
@@ -37,6 +38,8 @@ export default function Me() {
           Fun points. 100 more every Monday.{live > 0 && <> {fmtNum(live)} {live === 1 ? 'is' : 'are'} in a live pick.</>}
         </p>
       </Stub>
+
+      <ButtonLink to="/app/shop" variant="bone" size="sm" style={{ marginTop: 12 }}>Shop: looks for your name</ButtonLink>
 
       <BadgeSection kind="user" id={profile?.id} title="Your badges" own className="me-badges" />
 
@@ -130,6 +133,7 @@ function MyPicks({ st }: { st: ReturnType<typeof usePicks> }) {
 
 const PAGE = 50
 const BET_REASONS = new Set(['bet', 'bet_cancel', 'payout', 'refund', 'payout_reversal'])
+const SHOP_REASONS = new Set(['shop', 'shop_refund'])
 
 interface LogData { rows: LedgerRow[]; more: boolean; label: Map<string, string> }
 
@@ -160,6 +164,21 @@ function PointsLog() {
         label.set(b.id, [nm, extra].filter(Boolean).join(SEP))
       }
     }
+    // shop rows: note is the item code, ref_id (custom title only) the title request: show what it was for
+    const shopRows = rows.filter(r => SHOP_REASONS.has(r.reason))
+    const codes = [...new Set(shopRows.map(r => r.note).filter((c): c is string => !!c))]
+    const reqIds = [...new Set(shopRows.filter(r => r.note === 'title_custom' && r.ref_id).map(r => r.ref_id!))]
+    const [items, reqs] = await Promise.all([
+      codes.length ? supabase.from('shop_items').select('code,label').in('code', codes) : null,
+      reqIds.length ? supabase.from('title_requests').select('id,title').in('id', reqIds) : null,
+    ])
+    const itemLabel = new Map(((items?.data ?? []) as { code: string; label: string }[]).map(i => [i.code, i.label]))
+    const reqTitle = new Map(((reqs?.data ?? []) as { id: string; title: string }[]).map(t => [t.id, t.title]))
+    for (const r of shopRows) {
+      const t = r.ref_id ? reqTitle.get(r.ref_id) : undefined
+      const what = t ? `“${t}”` : r.note ? itemLabel.get(r.note) : undefined
+      if (what) label.set(`shop:${r.id}`, what)
+    }
     return { rows, more: all.length > n, label }
   }, [profile?.id, n])
 
@@ -172,7 +191,7 @@ function PointsLog() {
     <>
       <ul className="rows" role="list" style={{ marginTop: 8 }}>
         {d.rows.map(r => {
-          const about = BET_REASONS.has(r.reason) ? (r.ref_id ? d.label.get(r.ref_id) : '') : r.reason === 'admin_adjust' ? r.note?.trim() : ''
+          const about = BET_REASONS.has(r.reason) ? (r.ref_id ? d.label.get(r.ref_id) : '') : r.reason === 'admin_adjust' ? r.note?.trim() : SHOP_REASONS.has(r.reason) ? d.label.get(`shop:${r.id}`) : ''
           return (
             <li key={r.id} className="row">
               <span>

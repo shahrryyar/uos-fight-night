@@ -3,6 +3,7 @@ import { USERNAME_RE, supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { fmtNum } from '../../lib/copy'
 import type { Balance, Fighter, Profile } from '../../lib/types'
+import MemberName from '../../components/MemberName'
 import {
   ArrowCounterClockwise, Button, CaretDown, CaretRight, Copy, EmptyState, Field, Input, Loading, MagnifyingGlass, Paper,
   Seg, Select, Stamp, UserPlus, useToast,
@@ -12,6 +13,22 @@ import {
 } from '../../components/admin/ui'
 
 const nameOf = (m: Pick<Profile, 'display_name' | 'username'>) => m.display_name?.trim() || m.username
+
+/* C2: what each role can do (shown under the Role segs) */
+const ROLE_HINT: Record<Profile['role'], string | undefined> = {
+  member: undefined,
+  referee: 'Referees run the live clock and score on locked bouts. They can’t record results or manage anything else.',
+  admin: 'Admins can record results, change points and manage members.',
+}
+function RoleSegs({ role, setRole }: { role: Profile['role']; setRole: (r: Profile['role']) => void }) {
+  return (
+    <div className="segs">
+      <Seg pressed={role === 'member'} onClick={() => setRole('member')}>Member</Seg>
+      <Seg pressed={role === 'referee'} onClick={() => setRole('referee')}>Referee</Seg>
+      <Seg pressed={role === 'admin'} onClick={() => setRole('admin')}>Admin</Seg>
+    </div>
+  )
+}
 
 export default function AdminMembers() {
   const [members, setMembers] = useState<Profile[]>([])
@@ -195,11 +212,8 @@ function CreateAccount({ fighters, linkedBy, onCreated }: { fighters: Fighter[];
             </div>
           )}
         </Field>
-        <FieldGroup label="Role" hint={role === 'admin' ? 'Admins can record results, change points and manage members.' : undefined}>
-          <div className="segs">
-            <Seg pressed={role === 'member'} onClick={() => setRole('member')}>Member</Seg>
-            <Seg pressed={role === 'admin'} onClick={() => setRole('admin')}>Admin</Seg>
-          </div>
+        <FieldGroup label="Role" hint={ROLE_HINT[role]}>
+          <RoleSegs role={role} setRole={setRole} />
         </FieldGroup>
         <Field label={<>Fighter <span className="opt">(optional)</span></>} hint="Link them if they wrestle, so they can say yes to their own bouts.">
           {a => <FighterSelect id={a.id} value={fighterId} onChange={setFighterId} fighters={fighters} linkedBy={linkedBy} />}
@@ -273,11 +287,12 @@ function MemberRow({ m, balance, fighters, linkedBy, onChanged }: RowProps) {
       <button type="button" className="adm-row" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-controls={pid}>
         {open ? <CaretDown className="chev" /> : <CaretRight className="chev" />}
         <span style={{ minWidth: 0 }}>
-          <span className="t-sub"><bdi>{name}</bdi></span>
+          <span className="t-sub"><MemberName userId={m.id} name={name} /></span>
           <span className="meta">
             <span className="data nowrap">@{m.username}</span>
             {fighter && <span className="t-help">Fighter: <bdi>{fighter.nickname}</bdi></span>}
             {m.role === 'admin' && <Stamp tone="bone" size="sm" rot={-2}>Admin</Stamp>}
+            {m.role === 'referee' && <Stamp tone="bone" size="sm" rot={-2}>Referee</Stamp>}
             {!m.active && <Stamp tone="bone" size="sm" rot={2}>Switched off</Stamp>}
             {isMe && <Stamp tone="bone" size="sm" rot={-1}>You</Stamp>}
           </span>
@@ -295,11 +310,8 @@ function MemberRow({ m, balance, fighters, linkedBy, onChanged }: RowProps) {
               <Input value={displayName} maxLength={24} name="display_name" autoComplete="off"
                 onChange={e => { setDisplayName(e.target.value); setNameErr(undefined) }} />
             </Field>
-            <FieldGroup label="Role">
-              <div className="segs">
-                <Seg pressed={role === 'member'} onClick={() => setRole('member')}>Member</Seg>
-                <Seg pressed={role === 'admin'} onClick={() => setRole('admin')}>Admin</Seg>
-              </div>
+            <FieldGroup label="Role" hint={role !== m.role ? ROLE_HINT[role] : undefined}>
+              <RoleSegs role={role} setRole={setRole} />
             </FieldGroup>
             <FieldGroup label="Account" hint={active ? undefined : 'Switched-off members can\'t log in. Points and picks stay.'}>
               <div className="segs">

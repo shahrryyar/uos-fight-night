@@ -1,7 +1,7 @@
-// admin-create-user — an active admin creates a member/admin account (CONTRACT C0).
+// admin-create-user — an active admin creates a member/admin/referee account (CONTRACT C0, C2).
 // Public self-signup is disabled; this is the only way accounts are made.
 //
-// POST { username, display_name, password, role: 'member'|'admin', fighter_id?: uuid|null }
+// POST { username, display_name, password, role: 'member'|'admin'|'referee', fighter_id?: uuid|null }
 // with the caller's access token in `Authorization: Bearer <jwt>`.
 // -> 200 { user_id, username }
 // -> 4xx { error: 'NOT_ADMIN' | 'INVALID_BODY' | 'INVALID_USERNAME' | 'USERNAME_TAKEN'
@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
   if (password.length < 8 || password.length > 72) {
     return json({ error: 'WEAK_PASSWORD', message: 'Password must be 8-72 characters' }, 400)
   }
-  if (role !== 'member' && role !== 'admin') return json({ error: 'INVALID_ROLE' }, 400)
+  if (role !== 'member' && role !== 'admin' && role !== 'referee') return json({ error: 'INVALID_ROLE' }, 400)
   if (fighterId !== null && (typeof fighterId !== 'string' || !UUID_RE.test(fighterId))) {
     return json({ error: 'FIGHTER_NOT_FOUND' }, 400)
   }

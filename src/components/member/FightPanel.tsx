@@ -25,6 +25,7 @@ import ShareButton from './ShareButton'
 import LiveScore from './LiveScore'
 import { Sheet } from './ui'
 import { accepted, boutLabel, fmtDay, fmtTime, lockLeft, resultSentence } from './format'
+import { RematchButton } from '../callouts'
 
 export type CardSize = 'main' | 'row'
 
@@ -209,6 +210,7 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
               </p>
             </div>
             {yoursSettled() && <p className="bout-note t-help">{yoursSettled()}</p>}
+            <RematchButton fight={fight} />
             <details className="bout-more">
               <summary className="btn btn--ghost btn--sm">Full result</summary>
               {mainSheet()}
@@ -315,6 +317,7 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
               myBet={d.myBet?.status === 'active' ? d.myBet : null} redName={redName} blueName={blueName} onChanged={afterPick} />)}
         {d && isLocked && <LockedYours d={d} participant={participant} name={name} />}
         {d && settled && yoursSettled() && <p className="yours">{yoursSettled()}</p>}
+        {settled && size === 'main' && <RematchButton fight={fight} />}
         {d && settled && (d.bets.length > 0 || (d.totals && d.totals.red_votes + d.totals.blue_votes > 0)) && (
           <details className="more">
             <summary className="btn btn--ghost btn--sm">Who picked what</summary>

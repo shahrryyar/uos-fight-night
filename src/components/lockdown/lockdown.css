@@ -1,0 +1,93 @@
+/* C1 lockdown. Two halves:
+   1. .mnt*  the maintenance page members and visitors see. Deliberately NOT the flyer system:
+      plain light grey, system font, no texture, no stamps, no display caps, so nothing ties it to
+      the league. Contrast: #18181b on #f4f4f5 16.9:1, #3f3f46 on #f4f4f5 9.6:1, #52525b 7.1:1.
+   2. .ld-*  the admin controls (panic button, confirm sheet, red banner) in the flyer system. */
+
+/* ---------- 1. maintenance ---------- */
+.mnt-wait { min-height: 100dvh; }
+.mnt {
+  position: fixed; inset: 0; z-index: 1000; overflow-y: auto; overscroll-behavior: contain;
+  display: grid; place-items: center;
+  /* sit a little above centre (optical centre), not dead centre */
+  padding: max(24px, env(safe-area-inset-top)) 16px calc(max(24px, env(safe-area-inset-bottom)) + 12vh);
+  background: #f4f4f5; color: #18181b; color-scheme: light;
+  font: 400 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", sans-serif;
+}
+.mnt ::selection { background: #18181b; color: #f4f4f5; }
+.mnt :focus-visible { outline: 3px solid #18181b; outline-offset: 2px; }
+.mnt-box { width: 100%; max-width: 26rem; display: grid; gap: 8px; }
+.mnt-h {
+  font-family: inherit; font-size: 1.5rem; font-weight: 600; line-height: 1.25; text-transform: none; letter-spacing: normal;
+  margin: 0 0 4px; color: #18181b;
+}
+.mnt-p { color: #3f3f46; }
+.mnt-msg {
+  margin-top: 8px; padding: 12px 14px; background: #fff; border: 1px solid #d4d4d8; border-radius: 6px;
+  color: #18181b; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.mnt-foot { margin-top: 24px; font-size: .875rem; color: #52525b; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mnt-link {
+  min-height: 44px; padding: 0 4px; border: 0; background: none; color: #18181b; font: inherit; font-weight: 600;
+  text-decoration: underline; text-underline-offset: .2em; cursor: pointer;
+}
+.mnt-link:disabled { color: #52525b; cursor: default; }
+
+.mnt-form { display: grid; gap: 6px; }
+.mnt-form .mnt-h { margin-bottom: 12px; }
+.mnt-label { font-size: .875rem; font-weight: 600; color: #27272a; margin-top: 8px; }
+.mnt-input {
+  min-height: 48px; padding: 0 12px; font: inherit; font-size: 1rem; color: #18181b; caret-color: #18181b;
+  background: #fff; border: 1px solid #a1a1aa; border-radius: 6px;
+}
+.mnt-input[aria-invalid="true"] { border: 2px solid #b91c1c; }
+.mnt-err { margin-top: 6px; font-size: .875rem; font-weight: 600; color: #991b1b; }
+.mnt-btn {
+  margin-top: 16px; min-height: 48px; border: 0; border-radius: 6px; background: #27272a; color: #fafafa;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.mnt-btn:disabled { background: #52525b; cursor: default; }
+@media (hover: hover) { .mnt-btn:not(:disabled):hover { background: #18181b; } }
+
+/* ---------- 2. admin controls ---------- */
+
+/* header panic button: the one red fill in the admin header; never full width */
+.ld-btn { flex: none; width: auto; }
+.ld-btn--panic { padding-inline: 16px; }
+
+/* confirm sheet: paper on a 50% ink scrim (same build as dialog.adm-confirm) */
+dialog.ld-dialog { width: min(calc(100% - 32px), 448px); max-width: none; margin: auto; border: 0; overscroll-behavior: contain; }
+dialog.ld-dialog::backdrop { background: rgb(11 11 13 / .6); }
+dialog.ld-dialog form { display: grid; gap: 14px; }
+dialog.ld-dialog .t-head { margin: 0; }
+dialog.ld-dialog .ld-body { display: grid; gap: 8px; font: 400 .9375rem/1.45 var(--font-body); }
+dialog.ld-dialog .ld-note { font-size: .875rem; color: var(--color-toner-mute); text-wrap: pretty; }
+dialog.ld-dialog .field { display: grid; gap: 6px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+dialog.ld-dialog .opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
+dialog.ld-dialog .ld-msg { min-height: 96px; padding-block: 10px; resize: vertical; line-height: 1.45; }
+dialog.ld-dialog .ld-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 4px; }
+dialog.ld-dialog :focus-visible { outline-color: var(--color-toner); }
+
+/* banner: red strip across every page for admins (bone on red 4.58:1, so small text passes AA) */
+.ld-banner { background: var(--color-red); color: var(--color-bone); }
+.ld-banner-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding-block: 8px; }
+.ld-banner-txt { min-width: 0; display: grid; gap: 2px; }
+.ld-banner-h {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 800 1.25rem/1 var(--font-display); text-transform: uppercase; letter-spacing: .02em;
+}
+.ld-banner-h svg { font-size: 1.125rem; flex: none; }
+.ld-banner-sub { font: 400 .875rem/1.35 var(--font-body); overflow-wrap: anywhere; }
+.ld-banner-sub q { font-weight: 700; }
+.ld-banner-off {
+  flex: none; min-height: 44px; padding: 0 14px; border: 0; background: var(--color-bone); color: var(--color-toner);
+  font: 800 1.0625rem/1 var(--font-display); text-transform: uppercase; letter-spacing: .02em;
+  transition: transform .1s ease-out;
+}
+.ld-banner-off:active { transform: scale(.96); }
+.ld-banner :focus-visible { outline-color: var(--color-bone); }
+@media (hover: hover) { .ld-banner-off:hover { background: color-mix(in srgb, var(--color-bone) 86%, var(--color-toner)); } }
+
+/* admin page head: title left, panic button right (fits beside "Admin" at 320px) */
+.ld-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ld-head .t-title { margin: 0; }

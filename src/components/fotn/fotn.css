@@ -1,0 +1,78 @@
+/* ---------- Fight of the Night (C4). Flat paper (a form), one state stamp per sheet, no gold, no glow ---------- */
+.fotn { margin-top: 16px; }
+.fotn-h { display: flex; align-items: center; gap: 10px; margin-top: 12px; text-wrap: balance; }
+.fotn-h .star-mark { flex: none; color: var(--color-red); font-size: .85em; }
+.fotn-help { margin-top: 6px; max-width: var(--measure); text-wrap: pretty; }
+
+/* names: corner shown by a 3px underline in the corner colour (+ position), never colour alone */
+.fotn-vs { display: block; font: 800 var(--text-sub)/1.08 var(--font-display); text-transform: uppercase; text-wrap: balance; overflow-wrap: anywhere; }
+.fotn-vs--bout { font-size: var(--text-bout); line-height: 1; }
+.fotn-nm { color: inherit; }
+.fotn-nm--red  { text-decoration: underline 3px var(--color-red);  text-underline-offset: .16em; text-decoration-skip-ink: none; }
+.fotn-nm--blue { text-decoration: underline 3px var(--color-blue); text-underline-offset: .16em; text-decoration-skip-ink: none; }
+.fotn-vs-word { font: 800 1rem/1 var(--font-display); text-transform: uppercase; color: var(--color-toner-mute); }
+
+/* vote options: a radiogroup of the card's settled bouts */
+.fotn-opts { display: grid; gap: 8px; margin-top: 16px; }
+.fotn-opt {
+  position: relative; display: grid; gap: 6px; width: 100%; min-height: 64px; padding: 12px 48px 12px 14px;
+  border: 0; border-radius: 0; text-align: start; font: inherit; cursor: pointer; touch-action: manipulation;
+  background: transparent; color: var(--color-toner); box-shadow: inset 0 0 0 var(--rule) var(--color-toner-rule);
+}
+.fotn-opt-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fotn-opt .label, .fotn-meta { color: var(--color-toner-mute); }
+.fotn-meta { overflow-wrap: anywhere; }
+.fotn-yours { color: var(--color-toner); }
+.fotn-tick { position: absolute; right: 14px; top: 50%; translate: 0 -50%; font-size: 1.25rem; visibility: hidden; }
+.fotn-opt[aria-checked="true"] { background: var(--color-toner); color: var(--color-bone); box-shadow: none; }
+.fotn-opt[aria-checked="true"] .label, .fotn-opt[aria-checked="true"] .fotn-meta, .fotn-opt[aria-checked="true"] .fotn-vs-word { color: var(--color-bone-2); }
+.fotn-opt[aria-checked="true"] .fotn-yours { color: var(--color-bone); }
+.fotn-opt[aria-checked="true"] .fotn-tick { visibility: visible; }
+.fotn-opt[aria-checked="true"]:focus-visible { outline-color: var(--color-toner); }
+/* your own bout: dashed boundary + toner-mute text (6.28:1), never opacity */
+.fotn-opt:disabled { cursor: default; color: var(--color-toner-mute); box-shadow: none; outline: var(--rule) dashed var(--color-toner-rule); outline-offset: calc(var(--rule) * -1); }
+.fotn-opt:disabled .fotn-nm--red, .fotn-opt:disabled .fotn-nm--blue { text-decoration-color: var(--color-toner-rule); }
+@media (hover: hover) {
+  .fotn-opt:not(:disabled):not([aria-checked="true"]):hover { box-shadow: inset 0 0 0 var(--rule) var(--color-toner); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fotn-opt { transition: background-color 120ms ease-out, color 120ms ease-out, scale 150ms ease-out; }
+  .fotn-opt:active:not(:disabled) { scale: .98; }
+}
+.fotn-cta { margin-top: 16px; }
+
+/* closed: the winner under its stamp, the badge, the counts */
+.fotn-win { margin-top: 14px; }
+.fotn-win-stamp { margin-bottom: 14px; }
+.fotn-win-names { margin: 6px 0 0; }
+.fotn-win-meta { margin-top: 10px; }
+.fotn-win-you { margin-top: 6px; font-weight: 700; }
+.fotn-total { margin-inline-start: auto; }
+.fotn-none { margin-top: 8px; }
+.fotn-badge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 16px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+.fotn-badge .t-help { margin: 0; flex: 1 1 12rem; }
+.fotn-counts { list-style: none; margin: 16px 0 0; padding: 0; border-top: var(--rule-heavy) solid var(--color-toner); }
+.fotn-counts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; }
+.fotn-counts li + li { border-top: 1px dashed var(--color-toner-rule); }
+.fotn-c-name { display: grid; gap: 4px; min-width: 0; }
+.fotn-c-name .fotn-vs { font-size: 1.125rem; }
+.fotn-c-n { min-width: 2ch; text-align: end; }
+
+/* History card header (on ink): winner line, not a stamp */
+.fotn-mark { display: grid; gap: 2px; margin: 0 0 14px; }
+.fotn-mark-lab { display: inline-flex; align-items: center; gap: 6px; }
+.fotn-mark-lab .star-mark { color: var(--color-red); font-size: 1.125rem; }
+.fotn-mark-bout { line-height: 1.3; }
+/* 44px tap target (DESIGN §6): the link box grows, the line keeps its rhythm */
+.fotn-mark-bout .fotn-nm { display: inline-flex; align-items: center; min-height: 44px; vertical-align: middle; }
+.fotn-mark-bout .fotn-vs-word { color: var(--color-bone-2); }
+.fotn-mark-n { color: var(--color-bone-2); }
+.fotn-mark-n b { color: var(--color-bone); }
+
+/* the card wrap-up block on Tonight and History */
+.card-wrap .fotn { margin-top: 0; }
+.recap-share { margin-top: 12px; }
+.recap-share-err { margin-top: 8px; }
+.fotn-live:not(:empty) { margin-top: 12px; }
+.fotn-in { display: flex; gap: 8px; align-items: baseline; margin: 0; font-weight: 700; text-wrap: pretty; }
+.fotn-in .ic { flex: none; translate: 0 2px; }

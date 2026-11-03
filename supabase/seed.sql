@@ -6,6 +6,9 @@
 --   member2  / localmember123  (linked to fighter "Mattress Mauler")
 -- Wave B demo: "The Hallway Hurricane" holds the belt (won last week), badges,
 -- and a locked "Tonight" bout with a running live score.
+-- Wave C demo: yesterday's two-bout card (settled at seed time) has Fight of the Night
+-- voting open; callouts (Mauler -> Hurricane pending, Laundry Day -> Ramen Ronin accepted);
+-- member1 wears crimson + "Mat Rat"; member2 has a pending custom title request.
 -- Log in at http://localhost:5173/login with the username + password.
 -- Production accounts are made with the admin-create-user Edge Function instead.
 
@@ -140,3 +143,75 @@ insert into public.live_scores (fight_id, round, red_score, blue_score, round_st
 values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 2, 3, 1, now() - interval '20 seconds', 0, 120, true,
         '5eed0000-0000-4000-8000-000000000001')
 on conflict (fight_id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Wave C demo (C4 Fight of the Night, C5 callouts, C6 shop). Uses the real RPCs
+-- (auth.uid() comes from request.jwt.claims) so ledger, Elo and badges stay consistent.
+-- ---------------------------------------------------------------------------
+create or replace function pg_temp.seed_as(p_uid uuid) returns void language sql as $$
+  select set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', 'authenticated')::text, false);
+$$;
+
+insert into public.fighters (id, nickname, weight_kg, catchphrase) values
+  ('55555555-5555-4555-8555-555555555555', 'Snack Attack',  76.0, 'Midnight fuel.'),
+  ('66666666-6666-4666-8666-666666666666', 'The Night Owl', 73.4, 'Never sleeps, never taps.')
+on conflict (id) do nothing;
+
+-- Yesterday's card: two bouts, recorded at seed time -> FOTN voting window open for 24h.
+insert into public.fights (id, title, red_fighter_id, blue_fighter_id, scheduled_at, lock_at, status,
+                           red_weight_kg, blue_weight_kg, red_accepted_at, blue_accepted_at, bout_order, is_main_event)
+values
+  ('eeeeeeee-0000-4000-8000-000000000001', 'Opener',
+   '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666',
+   ((now() at time zone 'Asia/Baghdad')::date - 1 + time '20:30') at time zone 'Asia/Baghdad',
+   ((now() at time zone 'Asia/Baghdad')::date - 1 + time '20:15') at time zone 'Asia/Baghdad', 'locked',
+   76.0, 73.4, now() - interval '2 days', now() - interval '2 days', 1, false),
+  ('eeeeeeee-0000-4000-8000-000000000002', 'Late Night Main',
+   '22222222-2222-4222-8222-222222222222', '44444444-4444-4444-8444-444444444444',
+   ((now() at time zone 'Asia/Baghdad')::date - 1 + time '21:00') at time zone 'Asia/Baghdad',
+   ((now() at time zone 'Asia/Baghdad')::date - 1 + time '20:45') at time zone 'Asia/Baghdad', 'locked',
+   84.0, 69.8, now() - interval '2 days', now() - interval '2 days', 2, true)
+on conflict (id) do nothing;
+insert into public.fight_pools (fight_id)
+values ('eeeeeeee-0000-4000-8000-000000000001'), ('eeeeeeee-0000-4000-8000-000000000002')
+on conflict do nothing;
+
+select pg_temp.seed_as('5eed0000-0000-4000-8000-000000000001');   -- admin records both results
+select public.admin_settle_fight('eeeeeeee-0000-4000-8000-000000000001', 'blue', 'submission',
+                                 'Tapped in the corner', 3, 4, 6, 'rear naked choke')
+ where exists (select 1 from public.fights where id = 'eeeeeeee-0000-4000-8000-000000000001' and status = 'locked');
+select public.admin_settle_fight('eeeeeeee-0000-4000-8000-000000000002', 'red', 'decision',
+                                 'Close one', 2, 5, 4)
+ where exists (select 1 from public.fights where id = 'eeeeeeee-0000-4000-8000-000000000002' and status = 'locked');
+
+-- FOTN votes (member2 is Mattress Mauler, so they may only pick the opener)
+insert into public.fotn_votes (card_date, user_id, fight_id)
+select f.card_date, v.user_id, f.id
+  from (values ('5eed0000-0000-4000-8000-000000000002'::uuid, 'eeeeeeee-0000-4000-8000-000000000002'::uuid),
+               ('5eed0000-0000-4000-8000-000000000003'::uuid, 'eeeeeeee-0000-4000-8000-000000000001'::uuid)) v(user_id, fight_id)
+  join public.fights f on f.id = v.fight_id
+on conflict do nothing;
+
+-- Callouts: Mauler (member2) calls out the champion (pending, member1 can answer);
+-- Laundry Day -> Ramen Ronin already accepted, waiting for an admin.
+insert into public.callouts (id, challenger_fighter_id, target_fighter_id, message, status, created_by, created_at,
+                             responded_at)
+values
+  ('ca110000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+   '11111111-1111-4111-8111-111111111111', 'Title shot. Saturday. Bring a towel.', 'pending',
+   '5eed0000-0000-4000-8000-000000000003', now() - interval '3 hours', null),
+  ('ca110000-0000-4000-8000-000000000002', '33333333-3333-4333-8333-333333333333',
+   '44444444-4444-4444-8444-444444444444', 'Spin cycle round two.', 'accepted',
+   null, now() - interval '1 day', now() - interval '20 hours')
+on conflict (id) do nothing;
+
+-- Shop: member1 owns crimson + Mat Rat (worn) and the chain frame; member2 asked for a custom title.
+select pg_temp.seed_as('5eed0000-0000-4000-8000-000000000002');
+select public.buy_item(c) from unnest(array['color_crimson', 'title_mat_rat', 'frame_chain']) c
+ where not exists (select 1 from public.user_items where user_id = '5eed0000-0000-4000-8000-000000000002');
+select public.equip_item('color_crimson');
+select public.equip_item('title_mat_rat');
+select pg_temp.seed_as('5eed0000-0000-4000-8000-000000000003');
+select public.request_title('Couch Commando')
+ where not exists (select 1 from public.title_requests where user_id = '5eed0000-0000-4000-8000-000000000003');
+select set_config('request.jwt.claims', '', false);

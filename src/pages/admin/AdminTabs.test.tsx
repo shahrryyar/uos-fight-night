@@ -14,7 +14,7 @@ const hrefsAt = (url: string) => {
 }
 
 describe('admin tabs', () => {
-  const expected = ['/admin/fights', '/admin/fighters', '/admin/members', '/admin/points', '/admin/log', '/admin/season']
+  const expected = ['/admin/fights', '/admin/fighters', '/admin/members', '/admin/points', '/admin/log', '/admin/season', '/admin/shop']
 
   it('every tab targets an absolute /admin/<section> path', () => {
     expect(adminTabs.map(t => t.to)).toEqual(expected)

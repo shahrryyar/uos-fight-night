@@ -592,7 +592,8 @@ select is((select string_agg(jobname || '=' || schedule, ';' order by jobname) f
           'auto-lock=* * * * *;weekly-points=0 21 * * 0', 'cron jobs scheduled');
 select is((select string_agg(tablename::text, ',' order by tablename::text) from pg_publication_tables
             where pubname = 'supabase_realtime' and schemaname = 'public'),
-          'fight_pools,fights,live_scores,reactions', 'realtime publication tables (wave B: + live_scores)');
+          'callouts,fight_pools,fights,live_scores,reactions,site_settings',
+          'realtime publication tables (wave B: + live_scores; wave C: + callouts, site_settings)');
 select results_eq($$ select public, file_size_limit::bigint from storage.buckets where id = 'fighter-photos' $$,
                   $$ values (false, 5242880::bigint) $$, 'private fighter-photos bucket, 5MB');
 select is_empty($$
@@ -604,8 +605,8 @@ select is_empty($$
   select p.proname from pg_proc p
    where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
      and has_function_privilege('anon', p.oid, 'execute')
-     and p.proname <> 'public_next_fight'
-$$, 'anon can execute only public_next_fight');
+     and p.proname not in ('public_next_fight', 'public_site_status')
+$$, 'anon can execute only public_next_fight (+ wave C public_site_status)');
 select is_empty($$
   select c.relname from pg_class c
    where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and not c.relrowsecurity

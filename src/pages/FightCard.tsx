@@ -14,6 +14,7 @@ import FightPanel from '../components/member/FightPanel'
 import { fmtCardDay, tonightSort } from '../components/member/format'
 import { Alert, ButtonLink, EmptyState, Loading, Ranking } from '../components/ui'
 import '../components/member/tonight.css'
+import { CardWrapUp } from '../components/recap'
 
 const RECENT_WINDOW_MS = 12 * 3600_000
 
@@ -145,6 +146,9 @@ export default function FightCard() {
                 </div>
                 <div className="bouts">{results.map(f => panel(f, 'row'))}</div>
               </section>
+            )}
+            {live.length === 0 && done.some(f => f.status === 'settled') && (
+              <CardWrapUp cardDate={card.cardDate} sig={done.map(f => `${f.id}:${f.status}:${f.settled_at ?? ''}`).join('|')} />
             )}
           </section>
         )

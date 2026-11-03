@@ -146,6 +146,7 @@ Nobody can sign up, so the first admin is created by hand, once. See `seed_admin
 | job | schedule (UTC) | does |
 |---|---|---|
 | `auto-lock` | `* * * * *` | `private.auto_lock_fights()`: sets `status='locked'` on open fights whose `lock_at <= now()` |
+| `fotn-finalize` | `*/10 * * * *` | `private.fotn_finalize_due()`: closes every card whose Fight of the Night window (last settle + 24h) is over, picks the winner, awards `fight_of_the_night` badges. Idempotent; reads (`get_fotn`, `get_card_recap`, `hall_of_fame`) also finalize lazily |
 | `weekly-points` | `0 21 * * 0` | `private.weekly_points()`: +100 (`weekly`) to every active member, then tops anyone at 0-9 up to 100 (`topup`). A negative balance (debt after `admin_correct_result`) gets the +100 but no top-up |
 
 Sunday 21:00 UTC is Monday 00:00 in Asia/Baghdad (UTC+3, no DST). The weekly job skips anyone
@@ -215,8 +216,9 @@ Inspect jobs with `select * from cron.job;` and runs with
 - Extra read helpers (security definer, member-only): `get_leaderboard_bettors()` (backs
   the `leaderboard_bettors` view) and `get_all_fight_vote_totals()` (backs the
   `fight_vote_totals` view).
-- Realtime: subscribe to `postgres_changes` on `fights`, `fight_pools`, `reactions` and
-  `live_scores`. RLS applies, so only members get events.
+- Realtime: subscribe to `postgres_changes` on `fights`, `fight_pools`, `reactions`,
+  `live_scores`, `callouts` and `site_settings`. RLS applies, so only members get events
+  (Supabase does not RLS-filter DELETE events; they carry only the primary key).
 
 ### Wave B (live scoring, belt, badges, seasons)
 
@@ -256,6 +258,47 @@ Inspect jobs with `select * from cron.job;` and runs with
 - **Locks.** settle, correct, award belt and end season take one advisory lock
   (`private.lock_belt()`) before any row lock, so they run one at a time.
 
+### Wave C (lockdown, referee, recap, Fight of the Night, callouts, shop, Hall of Fame)
+
+Migration `20261103000013_wave_c.sql`. Full frontend reference (signatures, JSON shapes, error
+codes, copy hints): `scratchpad/wavec/API.md`; row types in `src/lib/types.ts`.
+
+- **Lockdown (C1).** Singleton `site_settings`. `public_site_status()` (anon + members) returns
+  only `{lockdown, message}`. `admin_set_lockdown(p_on, p_message)` (logged `site_lockdown`).
+  While on, `is_member()` is false for every non-admin, so every RLS policy, view, storage read
+  and realtime stream denies them; `private.require_member()` raises `SITE_LOCKED`; own-row
+  policies (`profiles`, `votes`, `bets`, `points_ledger`) check `is_locked_out()`;
+  `public_next_fight()` returns nothing for anyone. Admins are unaffected. Non-admins can still
+  read `site_settings` (to show the maintenance page) and call `is_admin()`.
+- **Referee (C2).** `profiles.role` adds `'referee'`. `is_referee()` = active and (admin or
+  referee) and not locked out. Referees are members plus `admin_live_update`; every other
+  `admin_*` RPC raises `NOT_ADMIN`. Assign via `admin_set_member(..., 'referee', ...)` or the
+  `admin-create-user` Edge Function (`role: 'referee'`).
+- **Recap (C3).** `get_card_recap(p_card_date)` → JSON of the card's fights (names, kg, scores,
+  rounds, method, move, winner, title/main flags, FOTN), current champion, FOTN state.
+- **Fight of the Night (C4).** `fotn_votes` (own row only), `fotn_results` (closed cards).
+  A card is complete when it has a settled fight and nothing scheduled/open/locked; voting runs
+  until `max(settled_at) + 24h`, one vote per member per card (re-voting changes it), not for a
+  bout you are or were linked to. `cast_fotn_vote(p_fight_id)`, `get_fotn(p_card_date)`; counts
+  and winner only after close. Ties: main event, then later bout. Both fighters get
+  `fight_of_the_night`. When a fight of the card leaves `settled` (`admin_correct_result`) a
+  trigger drops the card's result and FOTN badges; votes stay, and a new 24h window opens at the
+  re-settle.
+- **Callouts (C5).** `callouts` + `callout_board` view. Fighters (linked members):
+  `create_callout(p_target, p_message ≤140, p_rematch_of default null)` (max 3 open per
+  challenger, one open per pair; rematch only by the loser of that settled fight),
+  `accept_callout`, `decline_callout`, `withdraw_callout`. Admins: `admin_approve_callout`
+  (returns create-fight prefill), `admin_book_callout(id, scheduled_at, lock_at, title, bout_order,
+  main_event)` (creates a normal `scheduled` fight; both fighters still accept), `admin_reject_callout`,
+  `admin_delete_callout`. Admins linked to either fighter get `PARTICIPANT`.
+- **Shop (C6).** `shop_items` (seeded), `user_items`, `title_requests`, view `member_cosmetics`.
+  `buy_item(p_code)` locks the caller's profile row (same lock as `place_bet`) → ledger
+  `shop`; `equip_item` / `unequip_item` (one per kind); `request_title(p_title)` charges 500 up
+  front, `admin_approve_title` grants it, `admin_reject_title` refunds (`shop_refund`).
+  Copy: "Fun points — no cash value. Items are cosmetic."
+- **Hall of Fame (C7).** `hall_of_fame()` → champions/reigns, season champions, top-3 records
+  (longest win streak, most wins, most rounds, most FOTN, biggest upset, peak balance).
+
 ## Visitor stats (B8)
 
 Nothing to build or deploy. In the Cloudflare dashboard: Workers & Pages → the Pages project →
@@ -266,7 +309,7 @@ no cookies and needs no code or consent banner. Only enable a token-based snippe
 ## Tests
 
 ```bash
-supabase db reset && supabase test db      # pgTAP: fight_night_test, wave_a_*, wave_b_test
+supabase db reset && supabase test db      # pgTAP: fight_night_test, wave_a_*, wave_b_*, wave_c_*
 supabase functions serve &                  # then, HTTP checks (signup disabled, admin-create-user):
 bash supabase/tests/http_auth_edge_test.sh
 ```
@@ -275,3 +318,5 @@ The suites build their own fixtures (`tq_*` / `tw_*` users, `TQ *` / `TW *` figh
 an empty DB. Exception: `wave_a_race_test.sql` needs real concurrent sessions, so it commits
 its `tr_*` / `TR *` fixtures through a dblink loopback and deletes them at the start and end
 of the run. It creates the `dblink` extension inside its own rolled-back transaction.
+`wave_b_season_race_test.sql` and `wave_c_shop_race_test.sql` (`twr_*` users: parallel
+purchases must not double-spend) work the same way.

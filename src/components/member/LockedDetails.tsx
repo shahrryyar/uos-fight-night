@@ -9,6 +9,7 @@ import type { Bet, VoteTotals } from '../../lib/types'
 import { Button, cx } from '../ui'
 import { SplitBar } from './PoolBar'
 import { sideWord } from './format'
+import MemberName from '../MemberName'
 
 interface Props {
   totals: VoteTotals | null
@@ -64,7 +65,7 @@ export default function LockedDetails({ totals, bets, names, myId, settled, crow
                 const me = b.user_id === myId
                 return (
                   <li key={b.id} className={me ? 'me' : undefined}>
-                    <span className="who"><bdi>{names.get(b.user_id) ?? 'Member'}</bdi>{me && ' (you)'}</span>
+                    <span className="who"><MemberName userId={b.user_id} name={names.get(b.user_id) ?? 'Member'} />{me && ' (you)'}</span>
                     <span className={`side-tag side-tag--${b.side}`}>{sideWord(b.side)}</span>
                     <span className="data"><b>{fmtNum(b.amount)}</b></span>
                     {settled && <span className="data res">{result(b)}</span>}

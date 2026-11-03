@@ -8,6 +8,7 @@
 import { Link } from 'react-router-dom'
 import { BadgeSeal } from '../badges'
 import { Paper, Stamp } from '../ui'
+import MemberName from '../MemberName'
 import { fmtNum } from '../../lib/copy'
 import type { Season } from '../../lib/types'
 import { fmtSeasonRange, pickerName, topFighters } from './format'
@@ -52,7 +53,7 @@ export default function SeasonSheet({ season, visibleFighters }: { season: Seaso
           <span className="label">Top picker</span>
           {top ? (
             <>
-              <span className="who t-sub"><bdi>{pickerName(top)}</bdi></span>
+              <span className="who t-sub"><MemberName userId={top.user_id} name={pickerName(top)} /></span>
               <span className="data"><b>{fmtNum(top.balance)}</b> pts</span>
             </>
           ) : <p className="none t-help">No members yet.</p>}

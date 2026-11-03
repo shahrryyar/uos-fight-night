@@ -8,6 +8,7 @@ import { Alert, ButtonLink, CaretLeft, EmptyState, Loading, Stamp } from '../com
 import { SeasonSheet, fmtSeasonDay, fmtSpan, pickerName } from '../components/season'
 import '../components/season/season.css'
 import Lead from '../components/season/Lead'
+import MemberName from '../components/MemberName'
 
 interface Now {
   champion: CurrentChampion | null
@@ -96,7 +97,7 @@ function Body({ current, past, now, visible }: { current: Season | null; past: S
             </Lead>
             <Lead label="Top picker">
               {now.picker
-                ? <><bdi>{pickerName(now.picker)}</bdi> <span className="data nowrap">{fmtNum(Number(now.picker.balance))} pts</span></>
+                ? <><MemberName userId={now.picker.user_id} name={pickerName(now.picker)} title="none" /> <span className="data nowrap">{fmtNum(Number(now.picker.balance))} pts</span></>
                 : now.pickerTied > 0 ? <span className="data">Tied for first</span>
                 : <span className="data">Nobody yet</span>}
             </Lead>

@@ -1,0 +1,7 @@
+/* Seven admin sections (Shop added): 4 + 3 instead of 3 + 3 + 1, so no tab sits alone on a third row
+   (DESIGN 11.16). Wins over the six-tab 3 x 2 rule in season.css (extra type selector). */
+.pg-admin nav.tabs--5:has(> .tab:nth-child(7)) { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pg-admin nav.tabs--5:has(> .tab:nth-child(7)) .tab { font-size: .9375rem; padding-inline: 2px; }
+@media (max-width: 359px) {
+  .pg-admin nav.tabs--5:has(> .tab:nth-child(7)) .tab { font-size: .875rem; padding-inline: 0; letter-spacing: 0; }
+}

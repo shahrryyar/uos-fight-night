@@ -157,3 +157,21 @@
   .ref-foot { margin-top: 10px; }
   .ref-foot .btn, .ref-foot .btn--danger { min-height: 48px; }
 }
+
+/* ---------- C2: /admin/ref list (referee start page). Rows on ink, one hairline between rows. ---------- */
+.pg-reflist .rl-intro { margin-top: 8px; max-width: var(--measure); }
+.pg-reflist .rl-done { margin-top: 24px; display: grid; gap: 10px; justify-items: start; }
+.pg-reflist .rl-sec > .t-head { margin-bottom: 8px; }
+.pg-reflist .rl-sec > .t-help { margin-bottom: 8px; }
+.pg-reflist .rl-row { grid-template-columns: 1fr auto; grid-template-areas: "meta end" "names end"; row-gap: 4px; padding-block: 12px; }
+.pg-reflist .rl-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.pg-reflist .rl-meta .data { display: inline-flex; align-items: center; gap: 4px; }
+.pg-reflist .rl-meta svg { font-size: .9375rem; }
+.pg-reflist .rl-names { grid-area: names; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.pg-reflist .rl-names .t-sub { overflow-wrap: anywhere; }
+.pg-reflist .nm--red  { text-decoration: underline 3px var(--color-red); text-underline-offset: .16em; }
+.pg-reflist .nm--blue { text-decoration: underline 3px var(--color-blue); text-underline-offset: .16em; }
+.pg-reflist .rl-end { grid-area: end; display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.pg-reflist .rl-end .t-help { max-width: 7.5rem; text-align: end; }
+.pg-reflist .rl-chev { font-size: 1.25rem; color: var(--color-bone-2); }
+.pg-reflist .empty { padding-block: 16px 8px; }

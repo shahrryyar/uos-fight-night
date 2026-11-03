@@ -59,6 +59,13 @@ check "second admin role" "$(psql $DB -Atc "select role from public.profiles whe
 ADM2=$(token "adm$SUF" password123)
 r=$(create "$ADM2" "{\"username\":\"v$SUF\",\"display_name\":\"Via Admin Two\",\"password\":\"password123\",\"role\":\"member\"}")
 check "second admin can create accounts" "$r" "\"username\":\"v$SUF\""
+# 5b. wave C (C2): referee accounts
+r=$(create "$ADMIN" "{\"username\":\"ref$SUF\",\"display_name\":\"Ref Tester\",\"password\":\"password123\",\"role\":\"referee\"}")
+check "admin creates a referee" "$r" "\"username\":\"ref$SUF\""
+check "referee role stored" "$(psql $DB -Atc "select role from public.profiles where username='ref$SUF'")" "referee"
+REF=$(token "ref$SUF" password123)
+r=$(create "$REF" "{\"username\":\"x$SUF\",\"display_name\":\"Nope\",\"password\":\"password123\",\"role\":\"member\"}")
+check "referee cannot create accounts" "$r" "NOT_ADMIN"
 # 6. deactivated admin cannot
 psql $DB -qAtc "update public.profiles set active=false where username='adm$SUF'"
 r=$(create "$ADM2" "{\"username\":\"w$SUF\",\"display_name\":\"Nope\",\"password\":\"password123\",\"role\":\"member\"}")

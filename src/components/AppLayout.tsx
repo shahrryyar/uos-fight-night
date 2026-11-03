@@ -5,6 +5,7 @@ import { useBalance } from '../lib/hooks'
 import { BalanceContext } from '../lib/balance'
 import { fmtNum } from '../lib/copy'
 import { Logo, RegaCredit } from './brand'
+import { isRefereeRole } from './referee/RequireReferee'
 import { CalendarDot, ClockCounterClockwise, Ranking, UserCircle, UsersThree, Loading, type IconComponent } from './ui'
 
 const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] = [
@@ -17,7 +18,7 @@ const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] 
 
 /** App shell (DESIGN 11.1, 11.2, 11.20): non-sticky app bar, fixed bottom tab bar, credit after every page. */
 export default function AppLayout() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, profile } = useAuth()
   const { balance, loading, reload } = useBalance()
   const { pathname } = useLocation()
   // keep the stub honest: refresh on navigation and when the app comes back to the foreground
@@ -44,6 +45,7 @@ export default function AppLayout() {
         </NavLink>
         <div className="appbar-right">
           {isAdmin && <NavLink to="/admin" className="btn btn--ghost btn--sm">Admin</NavLink>}
+          {!isAdmin && isRefereeRole(profile) && <NavLink to="/admin/ref" className="btn btn--ghost btn--sm" aria-label="Ref: bouts to score">Ref</NavLink>}
           <NavLink to="/app/me" className="stub balance"
             aria-label={balance == null ? 'Your points are loading. Open Me' : `Your points: ${shown}. Open Me`}>
             <span className="data-lg">{shown}</span><span className="label">pts</span>

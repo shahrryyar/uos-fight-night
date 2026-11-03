@@ -136,9 +136,9 @@ select ok((select pg_get_constraintdef(oid) like '%payout_reversal%' from pg_con
 select ok(exists (select 1 from pg_publication_tables
                    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'live_scores'),
           'live_scores is in the realtime publication');
-select is((select count(*)::int from public.badge_catalog), 11, 'badge catalog: 7 fighter + 4 user codes');
+select is((select count(*)::int from public.badge_catalog), 12, 'badge catalog: 7 fighter + 4 user codes (+ wave C fight_of_the_night)');
 select set_eq($$ select code from public.badge_catalog where kind = 'fighter' $$,
-              array['first_win','streak_3','streak_5','upset','iron_man','shutout','belt_holder'], 'fighter codes');
+              array['first_win','streak_3','streak_5','upset','iron_man','shutout','belt_holder','fight_of_the_night'], 'fighter codes (+ wave C)');
 select set_eq($$ select code from public.badge_catalog where kind = 'user' $$,
               array['sharp_eye','high_roller','perfect_night','comeback'], 'user codes');
 select is_empty($$ select code from public.badge_catalog where icon !~ '^[A-Za-z]+$' or label !~ '^[A-Za-z ]+$' $$,
@@ -171,7 +171,7 @@ select ok(has_function_privilege('authenticated', s, 'execute'), 'authenticated 
                     'public.admin_end_season(text,text)', 'public.is_referee()', 'public.public_next_fight()']) s;
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute')),
-          array['public_next_fight'], 'anon may execute only public_next_fight');
+          array['public_next_fight','public_site_status'], 'anon may execute only public_next_fight (+ wave C public_site_status)');
 select is_empty($$ select p.oid from pg_proc p where p.pronamespace = 'private'::regnamespace
                     and (has_function_privilege('authenticated', p.oid, 'execute')
                          or has_function_privilege('anon', p.oid, 'execute')) $$,

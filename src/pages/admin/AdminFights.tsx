@@ -8,6 +8,7 @@ import CreateFight from '../../components/admin/fights/CreateFight'
 import FightAdminCard from '../../components/admin/fights/FightAdminCard'
 import CardManager from '../../components/admin/fights/CardManager'
 import RecentResults from '../../components/admin/fights/RecentResults'
+import CalloutQueue from '../../components/admin/fights/CalloutQueue'
 import { Button, EmptyState, Loading } from '../../components/ui'
 import { LoadError, SectionHead, fmtCardDate, must, useAction } from '../../components/admin/ui'
 import type { SettlePrefillState } from './Referee'
@@ -102,6 +103,7 @@ export default function AdminFights() {
           </div>
         ))}
       </section>
+      {loaded && <CalloutQueue byId={byId} hasAccount={hasAccount} cardFights={cardFights} onBooked={refresh} />}
       {loaded && (
         <section className="adm-section" aria-label="Book a bout">
           <CreateFight fighters={fighters} cardFights={cardFights} onCreated={refresh} />

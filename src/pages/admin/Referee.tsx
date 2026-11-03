@@ -1,7 +1,7 @@
 /**
  * /admin/ref/:fightId: the referee's phone during a bout (CONTRACT B4). It covers the app chrome
  * (header, tab bar) so the only things on screen are the clock, the two scores and their buttons.
- * Gate: is_referee() (admins today, role 'referee' in wave C), not linked to either fighter, no live
+ * Gate: is_referee() (admins and role 'referee', C2), not linked to either fighter, no live
  * pick on the bout, and the bout must be locked (an open bout past lock_at is locked by the first tap).
  * "Finish bout" hands round + score to the result form: /admin/fights with route state settlePrefill.
  */
@@ -9,10 +9,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
+import type { RefFinishedState } from '../../components/referee/RefList'
 import { must, useAsync } from '../../lib/hooks'
 import type { Fighter } from '../../lib/types'
 import type { AdminFight } from '../../components/admin/fightTypes'
-import { ButtonLink, CaretLeft, EmptyState, Loading } from '../../components/ui'
+import { ButtonLink, CaretLeft, EmptyState, Loading, useToast } from '../../components/ui'
 import Scoreboard, { type FinishPrefill } from '../../components/referee/Scoreboard'
 import { useInertOutside } from '../../components/referee/inert'
 import '../../components/referee/referee.css'
@@ -29,8 +30,11 @@ interface RefData {
 
 export default function Referee() {
   const { fightId = '' } = useParams()
-  const { profile } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
+  // C2: a referee (not admin) comes from and goes back to the ref list, and can't record results
+  const home = isAdmin ? { to: '/admin/fights', label: 'Fights', back: 'Back to fights' } : { to: '/admin/ref', label: 'Ref', back: 'Back to the ref list' }
   const uid = profile?.id
 
   const data = useAsync<RefData>(async () => {
@@ -65,11 +69,14 @@ export default function Referee() {
   const reload = data.reload
   const onFightGone = useCallback(() => { void reload() }, [reload])
   const onFinish = useCallback((p: FinishPrefill) => {
-    navigate('/admin/fights', { state: { settlePrefill: p } satisfies SettlePrefillState })
-  }, [navigate])
+    if (isAdmin) { navigate('/admin/fights', { state: { settlePrefill: p } satisfies SettlePrefillState }); return }
+    toast('Bout finished. An admin records the result.')
+    const red = data.data?.red?.nickname ?? 'Red corner', blue = data.data?.blue?.nickname ?? 'Blue corner'
+    navigate('/admin/ref', { state: { refFinished: { ...p, redName: red, blueName: blue } } satisfies RefFinishedState })
+  }, [navigate, isAdmin, toast, data.data])
 
-  const back = <Link to="/admin/fights" className="back"><CaretLeft />Fights</Link>
-  const backBtn = <ButtonLink to="/admin/fights" variant="bone" size="sm" icon={CaretLeft} className="mt-4">Back to fights</ButtonLink>
+  const back = <Link to={home.to} className="back"><CaretLeft />{home.label}</Link>
+  const backBtn = <ButtonLink to={home.to} variant="bone" size="sm" icon={CaretLeft} className="mt-4">{home.back}</ButtonLink>
 
   const shell = (body: ReactNode) => (
     <div className="ref-screen" ref={setScreen}>
@@ -92,19 +99,23 @@ export default function Referee() {
 
   if (!f) return blocked('Bout not found', 'It may have been deleted. Pick a bout from the live card.')
   if (!d.referee) return blocked('Referees only', 'Only the referee can run the scoreboard.')
-  if (f.status === 'settled') return blocked('This bout has a result', 'The scoreboard closes once a result is recorded. Fix a mistake with Correct result on the Fights tab.')
+  if (f.status === 'settled') return blocked('This bout has a result', isAdmin
+    ? 'The scoreboard closes once a result is recorded. Fix a mistake with Correct result on the Fights tab.'
+    : 'The scoreboard closes once a result is recorded. If the result is wrong, tell an admin.')
   if (f.status === 'cancelled') return blocked('This bout was called off', 'There is nothing left to score.')
   const isParticipant = !!profile?.fighter_id && [f.red_fighter_id, f.blue_fighter_id].includes(profile.fighter_id)
-  if (isParticipant) return blocked('Not your bout to ref', "You're linked to a fighter in this bout, so another admin has to run the scoreboard.")
-  if (d.hasPick) return blocked('Not your bout to ref', 'You have points on this bout, so another admin has to run the scoreboard.')
+  if (isParticipant) return blocked('Not your bout to ref', "You're linked to a fighter in this bout, so someone else has to run the scoreboard.")
+  if (d.hasPick) return blocked('Not your bout to ref', 'You have points on this bout, so someone else has to run the scoreboard.')
   const pastLock = new Date(f.lock_at).getTime() <= Date.now()
   if (f.status === 'scheduled' || (f.status === 'open' && !pastLock)) {
-    return blocked('Lock picks first', 'The scoreboard opens once picks are locked, so nobody can pick after the first point. Lock picks from the bout sheet.')
+    return blocked('Lock picks first', isAdmin
+      ? 'The scoreboard opens once picks are locked, so nobody can pick after the first point. Lock picks from the bout sheet.'
+      : 'The scoreboard opens once picks are locked, so nobody can pick after the first point. Ask an admin to lock picks, or wait for lock time.')
   }
 
   const boutLabel = f.is_main_event ? 'Main event' : `Bout ${f.bout_order ?? ''}`.trim()
   return shell(
     <Scoreboard fightId={f.id} redName={redName} blueName={blueName} boutLabel={boutLabel}
-      back={back} onFinish={onFinish} onFightGone={onFightGone} />,
+      back={back} onFinish={onFinish} onFightGone={onFightGone} canSettle={isAdmin} />,
   )
 }

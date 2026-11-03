@@ -11,6 +11,7 @@ import type { Fighter } from '../lib/types'
 import { ChampionBelt } from '../components/brand'
 import { TitleReigns } from '../components/belt'
 import { BadgeSection } from '../components/badges'
+import { CallOutButton } from '../components/callouts'
 import { Alert, ButtonLink, CaretLeft, EmptyState, Field, HalftonePhoto, Loading, Paper, Select, Stamp } from '../components/ui'
 
 interface Data {
@@ -120,6 +121,7 @@ export default function FighterProfile() {
           </p>
         )}
         {f.catchphrase?.trim() && <p className="quote">{curly(f.catchphrase)}</p>}
+        <CallOutButton fighterId={f.id} hidden={f.hidden} />
       </div>
 
       <section className="record" aria-label="Record and rating" style={{ gridTemplateColumns: 'max-content minmax(0, 1fr)' }}>

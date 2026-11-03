@@ -46,6 +46,8 @@ export const LEDGER_REASON: Record<LedgerReason, string> = {
   payout_reversal: 'Result fixed: points taken back',
   admin_adjust: 'Admin change',
   season_reset: 'New season: back to 1000',
+  shop: 'Shop item',
+  shop_refund: 'Title turned down: points came back',
 }
 
 /** Status of a points pick (Me > Picks). */

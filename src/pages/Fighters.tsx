@@ -4,6 +4,7 @@ import { cardDateOf, fmtKg, isChampion, must, record, todayCard, useAsync, type 
 import type { Fighter, FighterRanking } from '../lib/types'
 import { ChampBelt } from '../components/belt'
 import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp } from '../components/ui'
+import { CalloutsLink } from '../components/callouts'
 
 interface Tile { f: Fighter; r?: FighterRanking; tonight: boolean }
 
@@ -27,7 +28,7 @@ export default function Fighters() {
 
   return (
     <div>
-      <h1 className="t-title">Fighters</h1>
+      <div className="pagehead"><h1 className="t-title">Fighters</h1><CalloutsLink /></div>
       <p className="t-help c-2" style={{ marginTop: 6 }}>The roster. Tap a fighter for their full file.</p>
       {st.loading && !st.data ? <Loading label="Loading the roster…" shape="none" />
         : st.error ? <Alert title="Couldn't load the roster." onRetry={() => void st.reload()} className="mt-4">Check your connection and try again.</Alert>

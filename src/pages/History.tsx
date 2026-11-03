@@ -7,6 +7,8 @@ import {
 import { cancelCopy, fmtDelta, resultStampText } from '../lib/copy'
 import type { Fighter, Side } from '../lib/types'
 import { Alert, EmptyState, Loading, Paper, Stamp } from '../components/ui'
+import { RematchButton } from '../components/callouts'
+import { HistoryCardFotn, RecapShareButton } from '../components/recap'
 
 /** History: every finished bout, grouped by card, newest card first. Settled = compact paper sheet, cancelled = row on ink. */
 export default function History() {
@@ -32,11 +34,13 @@ export default function History() {
                 <h2 id={hid} className="t-head">{fmtCardDay(card.cardDate)}</h2>
                 <span className="data c-2 nowrap">{card.fights.length} bout{card.fights.length === 1 ? '' : 's'}</span>
               </div>
+              <HistoryCardFotn cardDate={card.cardDate} fights={card.fights} nameOf={id => fighters.data?.get(id)?.nickname} />
               <div className="grid gap-4">
                 {card.fights.map(f => f.status === 'cancelled'
                   ? <CalledOff key={f.id} f={f} red={fighters.data?.get(f.red_fighter_id)} blue={fighters.data?.get(f.blue_fighter_id)} />
                   : <Result key={f.id} f={f} red={fighters.data?.get(f.red_fighter_id)} blue={fighters.data?.get(f.blue_fighter_id)} />)}
               </div>
+              {card.fights.some(f => f.status === 'settled') && <RecapShareButton cardDate={card.cardDate} variant="ghost" size="sm" label="Share the results" />}
             </section>
           )
         })}
@@ -79,6 +83,7 @@ function Result({ f, red, blue }: { f: FightRow; red?: Fighter; blue?: Fighter }
       {f.result_note?.trim() && (
         <blockquote className="ref">{`“${f.result_note.trim()}”`}<cite>Ref note</cite></blockquote>
       )}
+      <RematchButton fight={f} />
     </Paper>
   )
 }

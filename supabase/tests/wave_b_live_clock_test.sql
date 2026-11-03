@@ -70,7 +70,7 @@ select ok(not has_function_privilege('anon', 'public.get_live_score(uuid)', 'exe
 select ok(not has_function_privilege('public', 'public.get_live_score(uuid)', 'execute'), 'public may not execute get_live_score');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute')),
-          array['public_next_fight'], 'anon still may execute only public_next_fight');
+          array['public_next_fight','public_site_status'], 'anon still may execute only public_next_fight (+ wave C public_site_status)');
 set local role anon;
 select throws_ok($$ select * from public.get_live_score(gen_random_uuid()) $$, '42501', null, 'anon: get_live_score refused');
 select throws_ok($$ select * from public.live_score_state $$, '42501', null, 'anon: live_score_state refused');

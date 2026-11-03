@@ -4,10 +4,13 @@ export type FightStatus = 'scheduled' | 'open' | 'locked' | 'settled' | 'cancell
 export type WinMethod = 'pin' | 'submission' | 'decision'
 export type CancelKind = 'cancelled' | 'no_contest' | 'declined'
 export type BetStatus = 'active' | 'cancelled' | 'won' | 'lost' | 'refunded'
-export type Role = 'member' | 'admin'
+/** C2: 'referee' = member + live scoring (admin_live_update / referee screen) only. */
+export type Role = 'member' | 'admin' | 'referee'
 export type LedgerReason =
   | 'signup' | 'weekly' | 'topup' | 'bet' | 'bet_cancel' | 'payout' | 'refund' | 'admin_adjust'
   | 'payout_reversal' | 'season_reset'
+  // C6 shop: purchase / custom title request (negative), rejected title request refund (positive)
+  | 'shop' | 'shop_refund'
 export const EMOJIS = ['🔥', '💀', '😂', '💪', '👑', '😱'] as const
 export type Emoji = (typeof EMOJIS)[number]
 
@@ -237,6 +240,7 @@ export interface AwardBeltResult {
 // Wave B — B6 badges
 // ---------------------------------------------------------------------------
 export type FighterBadgeCode = 'first_win' | 'streak_3' | 'streak_5' | 'upset' | 'iron_man' | 'shutout' | 'belt_holder'
+  | 'fight_of_the_night'
 export type UserBadgeCode = 'sharp_eye' | 'high_roller' | 'perfect_night' | 'comeback'
 export type BadgeCode = FighterBadgeCode | UserBadgeCode
 export type BadgeKind = 'fighter' | 'user'
@@ -259,6 +263,7 @@ export const BADGES: Record<BadgeCode, { kind: BadgeKind; label: string; descrip
   shutout:       { kind: 'fighter', label: 'Shutout',       description: 'Won without the opponent scoring a point',         icon: 'ShieldCheck' },
   iron_man:      { kind: 'fighter', label: 'Iron Man',      description: 'Fought 10 fights',                                 icon: 'Barbell' },
   belt_holder:   { kind: 'fighter', label: 'Belt Holder',   description: 'Held the title belt',                              icon: 'Crown' },
+  fight_of_the_night: { kind: 'fighter', label: 'Fight of the Night', description: 'Fans voted their bout Fight of the Night', icon: 'Star' },
   sharp_eye:     { kind: 'user',    label: 'Sharp Eye',     description: 'Picked the winner 5 fights in a row',              icon: 'Eye' },
   high_roller:   { kind: 'user',    label: 'Bold Pick',     description: 'Won a pick of 400+ points',                        icon: 'Trophy' },
   perfect_night: { kind: 'user',    label: 'Perfect Night', description: 'Picked every winner on a fight night (2+ fights)', icon: 'Target' },
@@ -290,4 +295,193 @@ export interface EndSeasonResult {
   next_season_id: number; next_season_name: string
   champion_fighter_id: string | null; champion_source: 'belt' | 'elo' | null
   top_bettor_user_id: string | null; members_reset: number; points_delta: number
+}
+
+// ---------------------------------------------------------------------------
+// Wave C — C1 lockdown
+// ---------------------------------------------------------------------------
+/** public_site_status() (anon + members). message is null whenever lockdown is off. */
+export interface SiteStatus { lockdown: boolean; message: string | null }
+/** Table `site_settings` (singleton id = 1, realtime). */
+export interface SiteSettings {
+  id: 1; lockdown: boolean; lockdown_message: string | null; updated_at: string; updated_by: string | null
+}
+/** admin_set_lockdown(p_on, p_message) result. */
+export interface SetLockdownResult { lockdown: boolean; message: string | null; updated_at: string }
+
+// ---------------------------------------------------------------------------
+// Wave C — C3 recap / C4 Fight of the Night
+// ---------------------------------------------------------------------------
+export type FotnStatus = 'not_ready' | 'open' | 'closed'
+/** get_fotn(p_card_date) and cast_fotn_vote(p_fight_id) result. counts/total/winner only once closed. */
+export interface FotnState {
+  card_date: string
+  status: FotnStatus
+  open: boolean
+  /** When the card became complete = its last settle or cancellation (window start); null until complete. */
+  opens_at: string | null
+  /** opens_at + 24h. */
+  closes_at: string | null
+  my_vote: string | null
+  /** Settled fight ids of the card, bout order. */
+  candidates: string[]
+  winner_fight_id: string | null
+  counts: { fight_id: string; votes: number }[] | null
+  total_votes: number | null
+}
+/** Table `fotn_votes` (own row only). */
+export interface FotnVote { card_date: string; user_id: string; fight_id: string; created_at: string; updated_at: string }
+/** Table `fotn_results` (one row per closed card). */
+export interface FotnResult {
+  card_date: string; winner_fight_id: string | null; counts: { fight_id: string; votes: number }[]
+  total_votes: number; closes_at: string; finalized_at: string
+}
+export interface CardRecapCorner {
+  fighter_id: string
+  /** null = hidden fighter (non-admins): render "Fighter". */
+  nickname: string | null
+  /** Fight snapshot weight, else current weight. */
+  kg: number | null
+  score: number | null
+}
+export interface CardRecapFight {
+  fight_id: string; bout_order: number; is_main_event: boolean; is_title_fight: boolean
+  title: string | null; status: FightStatus; cancel_kind: CancelKind | null
+  winner_side: Side | null; method: WinMethod | null; finish_move: string | null
+  rounds: number | null; settled_at: string | null
+  is_fotn: boolean
+  red: CardRecapCorner; blue: CardRecapCorner
+}
+/** get_card_recap(p_card_date) result. */
+export interface CardRecap {
+  card_date: string
+  /** No scheduled/open/locked fight left (and the card has fights). */
+  complete: boolean
+  settled_count: number
+  /** Belt holder at the card's last settle (current holder if nothing is settled yet); null = vacant or hidden. */
+  champion: { fighter_id: string; nickname: string } | null
+  fotn: { status: FotnStatus; closes_at: string | null; winner_fight_id: string | null }
+  fights: CardRecapFight[]
+}
+
+// ---------------------------------------------------------------------------
+// Wave C — C5 callouts
+// ---------------------------------------------------------------------------
+export type CalloutStatus = 'pending' | 'accepted' | 'declined' | 'approved' | 'rejected' | 'booked'
+export const CALLOUT_MESSAGE_MAX = 140
+/** Table `callouts` (members, realtime). */
+export interface Callout {
+  id: string
+  challenger_fighter_id: string
+  target_fighter_id: string
+  message: string | null
+  status: CalloutStatus
+  /** Settled fight this is a rematch of. */
+  rematch_of: string | null
+  /** Fight created by admin_book_callout. */
+  fight_id: string | null
+  created_by: string | null
+  created_at: string
+  responded_at: string | null
+  responded_by: string | null
+  decided_at: string | null
+  decided_by: string | null
+  decision_note: string | null
+}
+/** View `callout_board`. is_open = pending | accepted | approved. */
+export interface CalloutBoardRow {
+  id: string; status: CalloutStatus; message: string | null
+  challenger_fighter_id: string; challenger_nickname: string
+  target_fighter_id: string; target_nickname: string
+  rematch_of: string | null; fight_id: string | null; created_by: string | null
+  created_at: string; responded_at: string | null; decided_at: string | null
+  decision_note: string | null; is_open: boolean
+}
+/** admin_approve_callout() result: prefill for the create-fight form (red = challenger). */
+export interface CalloutPrefill {
+  callout_id: string
+  red_fighter_id: string; blue_fighter_id: string
+  red_nickname: string; blue_nickname: string
+  red_weight_kg: number | null; blue_weight_kg: number | null
+  title: string
+  rematch_of: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Wave C — C6 shop (fun points, cosmetic only)
+// ---------------------------------------------------------------------------
+export const SHOP_DISCLAIMER = 'Fun points — no cash value. Items are cosmetic.'
+export type ShopKind = 'name_color' | 'frame' | 'title'
+export type ShopItemCode =
+  | 'color_gold' | 'color_crimson' | 'color_ice_blue' | 'color_neon_green'
+  | 'frame_flame' | 'frame_chain' | 'frame_crown'
+  | 'title_custom' | 'title_the_butcher' | 'title_iron_grip' | 'title_mat_rat'
+/** Code bought through request_title() instead of buy_item(). */
+export const CUSTOM_TITLE_CODE = 'title_custom'
+export const CUSTOM_TITLE_MAX = 24
+/** Allowed custom title characters (server check, after trim + collapsing spaces). */
+export const CUSTOM_TITLE_RE = /^[A-Za-z0-9 '.,!?&-]{1,24}$/
+/** Table `shop_items`. value = token key for name_color/frame (frontend maps it), text for titles. */
+export interface ShopItem {
+  code: ShopItemCode; kind: ShopKind; label: string; value: string | null
+  price: number; active: boolean; sort: number
+}
+/** Table `user_items` (own rows; others' rows only when equipped). */
+export interface UserItem {
+  user_id: string; code: ShopItemCode; kind: ShopKind
+  /** Approved custom title text (code title_custom). */
+  custom_value: string | null
+  purchased_at: string; equipped: boolean; equipped_at: string | null
+}
+export type TitleRequestStatus = 'pending' | 'approved' | 'rejected'
+/** Table `title_requests` (own rows + admins). */
+export interface TitleRequest {
+  id: string; user_id: string; title: string; price: number; status: TitleRequestStatus
+  created_at: string; decided_at: string | null; decided_by: string | null; decision_note: string | null
+}
+/** View `member_cosmetics`: one row per active member wearing at least one item. */
+export interface MemberCosmetics {
+  user_id: string
+  name_color: string | null
+  frame: string | null
+  title: string | null
+  name_color_code: ShopItemCode | null
+  frame_code: ShopItemCode | null
+  title_code: ShopItemCode | null
+}
+/** buy_item() result. */
+export interface BuyItemResult { code: ShopItemCode; kind: ShopKind; price: number; balance: number }
+
+// ---------------------------------------------------------------------------
+// Wave C — C7 Hall of Fame
+// ---------------------------------------------------------------------------
+export interface HofFighterRecord { rank: number; fighter_id: string; nickname: string; value: number }
+export interface HofUpsetRecord {
+  rank: number; fight_id: string; card_date: string; settled_at: string
+  /** Elo gap (loser before − winner before). */
+  value: number
+  winner_fighter_id: string; winner_nickname: string; winner_elo_before: number
+  loser_fighter_id: string; loser_nickname: string; loser_elo_before: number
+}
+export interface HofPeakRecord { rank: number; user_id: string; display_name: string; value: number; at: string }
+/** hall_of_fame() result. Record lists are the top 3 (ties share a rank). */
+export interface HallOfFame {
+  generated_at: string
+  champions: {
+    reign_id: string; fighter_id: string; nickname: string; started_at: string; ended_at: string | null
+    end_reason: BeltEndReason | null; defenses: number; is_current: boolean; won_fight_id: string | null
+  }[]
+  season_champions: {
+    season_id: number; name: string; started_at: string; ended_at: string
+    champion_fighter_id: string | null; champion_nickname: string | null; champion_source: 'belt' | 'elo' | null
+    top_bettor_user_id: string | null; top_bettor_display_name: string | null; top_bettor_balance: number | null
+  }[]
+  records: {
+    longest_win_streak: HofFighterRecord[]
+    most_wins: HofFighterRecord[]
+    most_rounds: HofFighterRecord[]
+    most_fotn: HofFighterRecord[]
+    biggest_upset: HofUpsetRecord[]
+    top_bettor_peak: HofPeakRecord[]
+  }
 }

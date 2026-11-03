@@ -6,7 +6,8 @@ import { fmtKg, isChampion, must, useAsync, useDisplayNames, type FighterStats }
 import { fmtDelta, fmtNum } from '../lib/copy'
 import type { BettorRank, Fighter } from '../lib/types'
 import { ChampBelt, ChampionCard } from '../components/belt'
-import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp, TabPanel, Tabs } from '../components/ui'
+import { Alert, CaretRight, EmptyState, HalftonePhoto, Loading, Paper, Stamp, TabPanel, Tabs } from '../components/ui'
+import MemberName from '../components/MemberName'
 import { RANK_NEED, RankScopeToggle, SeasonsLink, scopeRows, useRankScope } from '../components/season/RankScope'
 
 type Tab = 'fighters' | 'pickers'
@@ -15,7 +16,7 @@ export default function Leaderboard() {
   const [tab, setTab] = useState<Tab>(() => (typeof location !== 'undefined' && location.hash === '#pickers' ? 'pickers' : 'fighters'))
   return (
     <div className="pg-ranks">
-      <div className="ranks-head"><h1 className="t-title">Ranks</h1><SeasonsLink /></div>
+      <div className="ranks-head"><h1 className="t-title">Ranks</h1><span style={{ display: 'flex', flexWrap: 'wrap', gap: '0 16px' }}><SeasonsLink /><Link to="/app/hall-of-fame" className="seasons-link">Hall of Fame<CaretRight /></Link></span></div>
       <ChampionCard />
       <Tabs label="Rankings" value={tab} onChange={setTab}
         tabs={[{ id: 'fighters', label: 'Fighters' }, { id: 'pickers', label: 'Pickers' }]} />
@@ -177,7 +178,7 @@ function PickerBoard() {
     return (
       <li key={r.user_id} className={me ? 'row row--me' : 'row'} aria-current={me ? 'true' : undefined}>
         <span className="rank"><span className="sr-only">Rank </span>{r.rank}</span>
-        <span className="t-sub"><bdi>{name}</bdi>{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
+        <span className="t-sub"><MemberName userId={r.user_id} name={name} />{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
         <span className="data-lg">{fmtNum(Number(r.balance))}<span className="sr-only"> points</span></span>
       </li>
     )

@@ -7,6 +7,8 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import NotFound from './components/landing/NotFound'
 import { EmptyState } from './components/ui'
+import { LockdownGate } from './components/lockdown'
+import RequireReferee from './components/referee/RequireReferee'
 
 // Member + admin pages are split into their own chunks so the public landing/login stay small.
 const FightCard = lazy(() => import('./pages/FightCard'))
@@ -16,7 +18,13 @@ const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const Me = lazy(() => import('./pages/Me'))
 const History = lazy(() => import('./pages/History'))
 const Seasons = lazy(() => import('./pages/Seasons'))
+const Callouts = lazy(() => import('./pages/Callouts'))
+const Shop = lazy(() => import('./pages/Shop'))
+const HallOfFame = lazy(() => import('./pages/HallOfFame'))
 const AdminHome = lazy(() => import('./pages/admin/AdminHome'))
+// C2: the referee screens are open to admins and role 'referee' (everything else in /admin is admin-only)
+const RefList = lazy(() => import('./components/referee/RefList'))
+const Referee = lazy(() => import('./pages/admin/Referee'))
 
 function RequireMember({ children }: { children: ReactNode }) {
   const { session, profile, loading } = useAuth()
@@ -37,6 +45,8 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
+    // C1: the lockdown gate sits outside Suspense, so a locked-out viewer never sees a branded fallback
+    <LockdownGate>
     <Suspense fallback={<Splash />}>
       <Routes>
         <Route path="/" element={<Landing />} />
@@ -50,11 +60,17 @@ export default function App() {
           <Route path="/app/leaderboard" element={<Leaderboard />} />
           <Route path="/app/history" element={<History />} />
           <Route path="/app/seasons" element={<Seasons />} />
+          <Route path="/app/callouts" element={<Callouts />} />
           <Route path="/app/me" element={<Me />} />
+          <Route path="/app/shop" element={<Shop />} />
+          <Route path="/app/hall-of-fame" element={<HallOfFame />} />
+          <Route path="/admin/ref" element={<RequireReferee><RefList /></RequireReferee>} />
+          <Route path="/admin/ref/:fightId" element={<RequireReferee><Referee /></RequireReferee>} />
           <Route path="/admin/*" element={<RequireAdmin><AdminHome /></RequireAdmin>} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
+    </LockdownGate>
   )
 }

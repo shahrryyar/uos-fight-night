@@ -1,0 +1,39 @@
+/* <MemberName/> (C6). Name inks are per surface and all AA (values + measurements in cosmetics.ts).
+   Flat colour only: no glow, no gradient, no shadow on type (DESIGN 2). Square corners. */
+
+.mn { overflow-wrap: anywhere; }
+.mn-name { overflow-wrap: anywhere; }
+
+/* colour: --mn-i = ink-surface variant, --mn-p = paper-surface variant */
+.mn[data-c="gold"]       { --mn-i: #d9925a; --mn-p: #7a3f12; } /* "Copper": never the belt gold */
+.mn[data-c="crimson"]    { --mn-i: #f5606a; --mn-p: #9c1422; }
+.mn[data-c="ice_blue"]   { --mn-i: #94d4f2; --mn-p: #0a5670; }
+.mn[data-c="neon_green"] { --mn-i: #62df7f; --mn-p: #155c2b; }
+
+.mn[data-c] { --mn-on: var(--mn-i); }
+/* light sheets: paper, taped poster, bone stub, your own (bone) row, bone toast */
+.paper .mn[data-c], .poster .mn[data-c], .stub .mn[data-c], .row--me .mn[data-c], .toast .mn[data-c], .btn--bone .mn[data-c] { --mn-on: var(--mn-p); }
+/* dark stock inside a light sheet (the toner pick ticket) */
+.ticket .mn[data-c] { --mn-on: var(--mn-i); }
+.mn.mn--on-ink[data-c] { --mn-on: var(--mn-i); }
+.mn.mn--on-paper[data-c] { --mn-on: var(--mn-p); }
+.mn[data-c] .mn-plate { color: var(--mn-on); }
+
+/* frame: a nameplate drawn in the name's own ink. Inline + cloned decoration so a wrapped name keeps
+   the plate on each line instead of one huge box. */
+.mn-plate { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.mn[class*="mn--f-"] .mn-plate { padding: .06em .3em .02em; border: max(2px, .07em) solid currentColor; }
+.mn.mn--f-chain .mn-plate { border-style: dashed; }
+.mn.mn--f-crown .mn-plate { border-width: max(5px, .16em); border-style: double; }
+.mn-glyph { display: inline-block; width: .82em; height: .82em; margin-inline-end: .22em; vertical-align: -.06em; flex: none; }
+
+/* title: a small label, never bigger than the label size so it can't compete with the name */
+.mn-title {
+  margin-inline-start: .55em; font: 700 var(--text-label)/1.2 var(--font-body); text-transform: uppercase;
+  letter-spacing: var(--tracking-label, .05em); white-space: nowrap; color: var(--color-bone-2); vertical-align: .12em;
+}
+.paper .mn-title, .poster .mn-title, .stub .mn-title, .row--me .mn-title, .toast .mn-title, .mn--on-paper .mn-title { color: var(--color-toner-mute); }
+.ticket .mn-title, .mn--on-ink .mn-title { color: var(--color-bone-2); }
+.mn--stack .mn-title { display: block; margin: .5rem 0 0; vertical-align: baseline; }
+/* a framed name that wraps gets room between lines, so the cloned plates never overlap */
+.mn[class*="mn--f-"] { line-height: 1.4; }
