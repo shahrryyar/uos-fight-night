@@ -7,14 +7,14 @@
  *   lock / cancel / force  inline confirm steps on the same sheet (no modal)
  * Every RPC and its arguments are unchanged.
  */
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../lib/auth'
 import type { FightPool, Fighter, Side, WinMethod } from '../../../lib/types'
 import { fmtNum } from '../../../lib/copy'
 import {
-  ArrowCounterClockwise, Button, Check, CheckCircle, Field, HourglassMedium, Info, Input, LockSimple, Paper, Seg,
-  Stamp, StatusStamp, Stepper, WarningOctagon, useToast,
+  ArrowCounterClockwise, Button, ButtonLink, Check, CheckCircle, Field, HourglassMedium, Info, Input, LockSimple, Paper, Seg,
+  Stamp, StatusStamp, Stepper, Timer, WarningOctagon, useToast,
 } from '../../ui'
 import { FINISH_MOVES, kgNum, type AdminFight } from '../fightTypes'
 import { FieldGroup, FormError, cap, focusFirstInvalid, fmtTime, must, parseKg, useAction } from '../ui'
@@ -29,6 +29,8 @@ interface Props {
   /** fighter ids that have an active linked member account */
   hasAccount: Set<string>
   onChanged: () => void
+  /** B4: round + score handed over by the referee scoreboard ("Finish bout"); opens the result form */
+  prefill?: { rounds: number; red: number; blue: number }
 }
 
 const kgStr = (n: number | null | undefined) => (n == null ? '' : String(n))
@@ -36,15 +38,17 @@ const plural = (n: number, one: string, many = `${one}s`) => `${fmtNum(n)} ${n =
 
 interface Checked { winner: Side; method: WinMethod; rs: number; bs: number; rk: number | null; bk: number | null; mv: string; note: string }
 
-export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onChanged }: Props) {
+export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onChanged, prefill }: Props) {
   const { profile } = useAuth()
   const toast = useToast()
-  const [mode, setMode] = useState<Mode>('none')
+  const [mode, setMode] = useState<Mode>(prefill && (fight.status === 'open' || fight.status === 'locked') ? 'settle' : 'none')
+  // the prefill is read once at mount (AdminFights drops it right after), so remember where the numbers came from
+  const [fromBoard] = useState(!!prefill)
   const [winner, setWinner] = useState<Side | ''>('')
   const [method, setMethod] = useState<WinMethod | ''>('')
-  const [rounds, setRounds] = useState(1)
-  const [redScore, setRedScore] = useState('')
-  const [blueScore, setBlueScore] = useState('')
+  const [rounds, setRounds] = useState(prefill ? Math.min(20, Math.max(1, prefill.rounds)) : 1)
+  const [redScore, setRedScore] = useState(prefill ? String(prefill.red) : '')
+  const [blueScore, setBlueScore] = useState(prefill ? String(prefill.blue) : '')
   const [move, setMove] = useState('')
   const [redKg, setRedKg] = useState(kgStr(fight.red_weight_kg ?? red?.weight_kg))
   const [blueKg, setBlueKg] = useState(kgStr(fight.blue_weight_kg ?? blue?.weight_kg))
@@ -72,6 +76,11 @@ export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onC
   const datalistId = `moves-${fight.id}`
   const hid = `bc-${fight.id}`
   const fid = (s: string) => `${fight.id}-${s}`
+  // arriving from the scoreboard: bring this sheet's result form into view
+  useEffect(() => {
+    if (prefill) document.getElementById(hid)?.closest('article')?.scrollIntoView({ block: 'start' })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const canRef = !isParticipant && (fight.status === 'locked' || (fight.status === 'open' && pastLock))
 
   const go = (m: Mode) => {
     act.setError(null); setErrs({})
@@ -247,7 +256,10 @@ export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onC
           {isParticipant && <p className="note-line"><Info /><span>You're linked to a fighter in this bout, so another admin has to run it.</span></p>}
           {scheduled
             ? <Button variant="ink" onClick={() => go('force')} disabled={!canForce}>Open picks now</Button>
-            : <Button variant="ink" onClick={() => go('settle')} disabled={!canSettle}>Record result</Button>}
+            : <>
+                {canRef && <ButtonLink to={`/admin/ref/${fight.id}`} icon={Timer}>Referee scoreboard</ButtonLink>}
+                <Button variant="ink" onClick={() => go('settle')} disabled={!canSettle}>Record result</Button>
+              </>}
           <div className="two">
             {!scheduled && <Button variant="ghost" size="sm" icon={LockSimple} onClick={() => go('lock')} disabled={fight.status !== 'open'}>Lock picks</Button>}
             <Button variant="danger" size="sm" onClick={() => { setKind('cancelled'); go('cancel') }} style={scheduled ? { gridColumn: '1 / -1' } : undefined}>Call off</Button>
@@ -310,6 +322,7 @@ export default function FightAdminCard({ fight, red, blue, pool, hasAccount, onC
       {mode === 'settle' && (
         <form ref={formRef} className="form" onSubmit={check} aria-labelledby={fid('rr')} noValidate>
           <h3 id={fid('rr')} className="t-sub">Record result</h3>
+          {fromBoard && <p className="t-help">Rounds and points come from the scoreboard. Check them, then pick the winner.</p>}
           <FieldGroup label="Winner" error={errs.winner}>
             <div className="segs">
               <Seg corner="red" pressed={winner === 'red'} onClick={() => { setWinner('red'); clear('winner'); clear('score') }}><bdi>{rName}</bdi></Seg>

@@ -15,6 +15,7 @@ const FighterProfile = lazy(() => import('./pages/FighterProfile'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const Me = lazy(() => import('./pages/Me'))
 const History = lazy(() => import('./pages/History'))
+const Seasons = lazy(() => import('./pages/Seasons'))
 const AdminHome = lazy(() => import('./pages/admin/AdminHome'))
 
 function RequireMember({ children }: { children: ReactNode }) {
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/app/fighters/:id" element={<FighterProfile />} />
           <Route path="/app/leaderboard" element={<Leaderboard />} />
           <Route path="/app/history" element={<History />} />
+          <Route path="/app/seasons" element={<Seasons />} />
           <Route path="/app/me" element={<Me />} />
           <Route path="/admin/*" element={<RequireAdmin><AdminHome /></RequireAdmin>} />
         </Route>

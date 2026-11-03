@@ -20,8 +20,8 @@ export default function AdminLog() {
     const page = must(await supabase.from('admin_log').select('*')
       .order('created_at', { ascending: false }).order('id', { ascending: false })
       .range(from, from + PAGE - 1)) as AdminLogRow[]
-    // Look up the bouts this page mentions so sentences can name them (fight_* rows target a fight id).
-    const ids = [...new Set(page.filter(r => r.action.startsWith('fight_') || r.action === 'card_main_event').map(r => r.target_id)
+    // Look up the bouts this page mentions so sentences can name them (fight_* and live_update rows target a fight id).
+    const ids = [...new Set(page.filter(r => r.action.startsWith('fight_') || r.action === 'card_main_event' || r.action === 'live_update').map(r => r.target_id)
       .filter((x): x is string => !!x && !known.current.has(x)))]
     if (ids.length) {
       const fr = must(await supabase.from('fights').select('id, red_fighter_id, blue_fighter_id, card_date').in('id', ids)) as FightRef[]

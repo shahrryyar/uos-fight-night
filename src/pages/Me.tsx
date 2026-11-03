@@ -5,6 +5,7 @@ import { useAppBalance } from '../lib/balance'
 import { cardDateOf, displayName, fmtDay, fmtDayTime, fmtTime, must, todayCard, useAsync, useFightersMap, useNow, type FightRow } from '../lib/hooks'
 import { BET_STATUS, LEDGER_REASON, fmtDelta, fmtNum } from '../lib/copy'
 import type { Bet, LedgerRow } from '../lib/types'
+import { BadgeSection } from '../components/badges'
 import {
   Alert, Button, ButtonLink, EmptyState, Field, FieldError, Loading, PasswordInput, SignOut, Stamp, Stub, TabPanel, Tabs, useToast,
 } from '../components/ui'
@@ -36,6 +37,8 @@ export default function Me() {
           Fun points. 100 more every Monday.{live > 0 && <> {fmtNum(live)} {live === 1 ? 'is' : 'are'} in a live pick.</>}
         </p>
       </Stub>
+
+      <BadgeSection kind="user" id={profile?.id} title="Your badges" own className="me-badges" />
 
       <Tabs label="Your account" value={tab} onChange={setTab}
         tabs={[{ id: 'picks', label: 'Picks' }, { id: 'log', label: 'Points log' }, { id: 'account', label: 'Account' }]} />

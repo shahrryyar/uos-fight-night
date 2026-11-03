@@ -9,6 +9,8 @@ export interface FightRef { id: string; red_fighter_id: string; blue_fighter_id:
 export interface Lookups { people: Record<string, string>; fighters: Record<string, string>; fights: Record<string, FightRef> }
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+/** 180 -> "3:00", 90 -> "1:30" (round lengths in the scoreboard's own format) */
+const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
 
 /** One human sentence per event (DESIGN 11.16 "Admin log"): never raw snake_case actions or UUIDs. */
 export function logSentence(r: AdminLogRow, L: Lookups): { say: ReactNode; why?: string | null } {
@@ -69,6 +71,35 @@ export function logSentence(r: AdminLogRow, L: Lookups): { say: ReactNode; why?:
         : { say: <>{B(who)} gave {B(name)} {Number.isFinite(n) ? fmtDelta(n) : 'some'}&nbsp;pts.</>, why: reason }
     }
     case 'bootstrap_admin': return { say: <>{B(str(d.username) ? `@${d.username}` : 'The first admin')} became the first admin.</> }
+    case 'belt_award': {
+      const prev = str(d.prev_fighter_id)
+      return { say: <>{B(who)} gave {B(fighter(r.target_id))} the belt{prev ? <>, taking it from {B(fighter(prev))}</> : ''}.</>, why: reason }
+    }
+    case 'belt_vacate': {
+      const prev = str(d.prev_fighter_id)
+      return { say: <>{B(who)} took the belt{prev ? <> off {B(fighter(prev))}</> : ''}. Nobody holds it now.</>, why: reason }
+    }
+    case 'season_end': {
+      const ended = str(d.season_name) ?? 'the season', next = str(d.next_season_name)
+      return { say: <>{B(who)} ended {B(ended)}{next ? <> and started {B(next)}</> : ''}. Points and Elo went back to 1,000.</> }
+    }
+    case 'live_update': {
+      // since 20261103000007 only these four are logged; older rows (score taps) read as a plain update
+      const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+      const round = n(d.round), len = n(d.value), prevLen = n(d.prev_round_seconds)
+      const pr = n(d.prev_round), prs = n(d.prev_red_score), pbs = n(d.prev_blue_score)
+      switch (d.action) {
+        case 'start': return { say: <>{B(who)} started the scoreboard clock for {B(bout)}.</> }
+        case 'next_round': return { say: <>{B(who)} moved {B(bout)} to round {round ?? 'the next'}.</> }
+        case 'set_round_seconds': return {
+          say: <>{B(who)} set the rounds in {B(bout)} to {len != null ? clock(len) : 'a new length'}{prevLen != null ? ` (was ${clock(prevLen)})` : ''}.</>,
+        }
+        case 'reset': return {
+          say: <>{B(who)} reset the scoreboard for {B(bout)}{pr != null && prs != null && pbs != null ? `. It was round ${pr}, ${prs}–${pbs}` : ''}.</>,
+        }
+        default: return { say: <>{B(who)} updated the scoreboard for {B(bout)}.</> }
+      }
+    }
     case 'invite_create': return { say: <>{B(who)} made an invite code.</> }
     case 'invite_revoke': return { say: <>{B(who)} cancelled an invite code.</> }
     default: {

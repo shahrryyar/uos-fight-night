@@ -22,6 +22,7 @@ import PickTicket from './PickTicket'
 import Reactions, { type ReactionState } from './Reactions'
 import LockedDetails, { CrowdPicks } from './LockedDetails'
 import ShareButton from './ShareButton'
+import LiveScore from './LiveScore'
 import { Sheet } from './ui'
 import { accepted, boutLabel, fmtDay, fmtTime, lockLeft, resultSentence } from './format'
 
@@ -195,6 +196,7 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
           {settled ? resultSentence(fight, redName, blueName) : `${redName}, red corner, versus ${blueName}, blue corner`}
         </h3>
         <BoutVs fight={fight} red={red} blue={blue} />
+        {isLocked && <LiveScore fightId={fight.id} redName={redName} blueName={blueName} onInk />}
 
         {settled && (
           <>
@@ -276,6 +278,7 @@ export default function FightPanel({ fight, red, blue, now, balance, onPointsCha
         </div>
         {isOpen && left && <p className="data locks">Picks lock at <b>{fmtTime(fight.lock_at)}</b>, in <b className="nowrap">{left}</b></p>}
         {scheduled && <p className="data locks">{fmtDay(fight.scheduled_at)}</p>}
+        {isLocked && <LiveScore fightId={fight.id} redName={redName} blueName={blueName} />}
         <h2 id={hid} className="sr-only">
           {settled ? resultSentence(fight, redName, blueName)
             : `${boutLabel(fight)}${isLocked ? ', picks locked' : ''}: ${redName}, red corner, versus ${blueName}, blue corner`}

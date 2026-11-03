@@ -5,6 +5,7 @@ import type { PublicNextFight } from '../../lib/types'
 import { MatDivider } from '../brand'
 import { Alert, EmptyState, Paper, Skeleton, Stamp } from '../ui'
 import { useRemaining } from './Countdown'
+import { ChampTag, TitleFightMark } from '../belt'
 
 /** public_next_fight() row. Public page: nicknames and kg only, never photos or real names. */
 export type NextFightRow = PublicNextFight
@@ -83,29 +84,37 @@ function Flyer({ fight }: { fight: NextFightRow }) {
   // It stays mounted but hidden so it lands when the bout locks while the page is open.
   const quiet = fight.status === 'open' && !pastLock
   // admins often title the main event "Main event": the countdown label already says it
-  const showTitle = !!fight.title && !['main event', stamp.toLowerCase()].includes(fight.title.trim().toLowerCase())
+  const showTitle = !!fight.title && !['main event', 'title fight', stamp.toLowerCase()].includes(fight.title.trim().toLowerCase())
+  // B5: the champion's corner gets the belt plate; otherwise the reigning champion is named under the countdown
+  const champSide = fight.is_title_fight ? fight.champion_side : null
+  const champLine = !champSide && fight.champion_nickname ? fight.champion_nickname : null
   return (
     <Paper as="article" edges="both" bleed className={quiet ? 'flyer' : 'flyer flyer--stamped'} aria-labelledby="nf-h">
       <p className="snipe"><span className="nowrap">{day}</span> · <span className="data">{time}</span></p>
       <h2 id="nf-h" className="sr-only">
         Next fight, {longDayFmt.format(new Date(fight.scheduled_at))} at {time}.
-        {fight.is_main_event ? ' Main event: ' : ' '}{fight.red_nickname} versus {fight.blue_nickname}.
+        {fight.is_main_event ? ' Main event: ' : ' '}{fight.is_title_fight ? 'Title fight: ' : ''}{fight.red_nickname} versus {fight.blue_nickname}.
+        {champSide && ` ${champSide === 'red' ? fight.red_nickname : fight.blue_nickname} is the champion.`}
       </h2>
       <Stamp className="flyer-stamp" rot={-4} land stateKey={`${stamp}|${fight.status}`} hidden={quiet} aria-hidden="true">{stamp}</Stamp>
+      {fight.is_title_fight && <TitleFightMark className="flyer-titlemark" belt={34} />}
       {showTitle && <p className="flyer-title t-sub">{fight.title}</p>}
       <p className="t-poster c-red first" aria-hidden="true"><bdi>{fight.red_nickname}</bdi></p>
       <p className="corner-line">
         <span className="corner corner--red label">Red corner</span>
         {redKg && <span className="data"><b>{redKg}</b></span>}
+        {champSide === 'red' && <ChampTag size={30} className="flyer-champ" />}
       </p>
       <div className="vs-band" aria-hidden="true"><span className="stamp stamp--lg">VS</span></div>
       <p className="t-poster c-blue" aria-hidden="true"><bdi>{fight.blue_nickname}</bdi></p>
       <p className="corner-line">
         <span className="corner corner--blue label">Blue corner</span>
         {blueKg && <span className="data"><b>{blueKg}</b></span>}
+        {champSide === 'blue' && <ChampTag size={30} className="flyer-champ" />}
       </p>
       <MatDivider className="flyer-divider" />
       <When fight={fight} pastLock={pastLock} />
+      {champLine && <p className="flyer-reign"><span className="label">Champion</span> <b className="t-sub"><bdi>{champLine}</bdi></b></p>}
     </Paper>
   )
 }

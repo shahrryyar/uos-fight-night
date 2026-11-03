@@ -5,8 +5,9 @@ import { useAuth } from '../lib/auth'
 import { fmtKg, isChampion, must, useAsync, useDisplayNames, type FighterStats } from '../lib/hooks'
 import { fmtDelta, fmtNum } from '../lib/copy'
 import type { BettorRank, Fighter } from '../lib/types'
-import { ChampionBelt } from '../components/brand'
+import { ChampBelt, ChampionCard } from '../components/belt'
 import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp, TabPanel, Tabs } from '../components/ui'
+import { RANK_NEED, RankScopeToggle, SeasonsLink, scopeRows, useRankScope } from '../components/season/RankScope'
 
 type Tab = 'fighters' | 'pickers'
 
@@ -14,7 +15,8 @@ export default function Leaderboard() {
   const [tab, setTab] = useState<Tab>(() => (typeof location !== 'undefined' && location.hash === '#pickers' ? 'pickers' : 'fighters'))
   return (
     <div className="pg-ranks">
-      <h1 className="t-title">Ranks</h1>
+      <div className="ranks-head"><h1 className="t-title">Ranks</h1><SeasonsLink /></div>
+      <ChampionCard />
       <Tabs label="Rankings" value={tab} onChange={setTab}
         tabs={[{ id: 'fighters', label: 'Fighters' }, { id: 'pickers', label: 'Pickers' }]} />
       <TabPanel id="fighters" value={tab}><FighterBoard /></TabPanel>
@@ -37,6 +39,7 @@ interface Board { rows: FighterStats[]; fighters: Map<string, Fighter>; lastDelt
 
 function FighterBoard() {
   const { profile } = useAuth()
+  const [scope, setScope] = useRankScope()
   const st = useAsync<Board>(async () => {
     const [r, f, last] = await Promise.all([
       supabase.from('fighter_rankings').select('*'),
@@ -53,7 +56,7 @@ function FighterBoard() {
   if (st.loading && !st.data) return <Loading label="Loading the ranks…" shape="rows" />
   if (st.error) return <Alert title="Couldn't load the ranks." onRetry={() => void st.reload()} className="mt-4">Check your connection and try again.</Alert>
   const { rows, fighters, lastDelta } = st.data!
-  const visible = rows.filter(r => !fighters.get(r.fighter_id)?.hidden)
+  const visible = scopeRows(rows, scope).filter(r => !fighters.get(r.fighter_id)?.hidden)
   const ranked = visible.filter(r => r.ranked).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
   const unranked = visible.filter(r => !r.ranked).sort((a, b) => b.fights - a.fights || b.elo - a.elo || a.nickname.localeCompare(b.nickname))
   const mine = profile?.fighter_id ?? null
@@ -61,7 +64,7 @@ function FighterBoard() {
 
   return (
     <>
-      <p className="intro t-help">Ranked by Elo. Everyone starts at 1,000. You need 3 fights to get a rank.</p>
+      <RankScopeToggle value={scope} onChange={setScope} />
       {!visible.length && <EmptyState title="No fighters yet" body="Admins add fighters to the roster. They show up here once they do." />}
 
       {top && <TopOne r={top} f={fighters.get(top.fighter_id)} me={top.fighter_id === mine} />}
@@ -81,7 +84,7 @@ function FighterBoard() {
                     <span className="rank"><span className="sr-only">Rank </span>{r.rank}</span>
                     <span>
                       <span className="t-sub">
-                        {isChampion(f) && <ChampionBelt size={20} label="Champion" className="mr-1" />}<bdi>{r.nickname}</bdi>
+                        {isChampion(r) && <ChampBelt size={20} />}<bdi>{r.nickname}</bdi>
                         {me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}
                       </span>
                       <span className="meta data">
@@ -113,10 +116,10 @@ function FighterBoard() {
                   <Link className={me ? 'row row-link row--me' : 'row row-link'} style={{ gridTemplateColumns: '1fr auto' }}
                     to={`/app/fighters/${r.fighter_id}`} aria-current={me ? 'true' : undefined}>
                     <span>
-                      <span className="t-sub"><bdi>{r.nickname}</bdi>{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
+                      <span className="t-sub">{isChampion(r) && <ChampBelt size={20} />}<bdi>{r.nickname}</bdi>{me && <Stamp tone="ink" size="sm" rot={-4} className="you">You</Stamp>}</span>
                       <span className="meta data"><span className="nowrap">{recordOf(r)}{kg && <> · {kg}</>}</span></span>
                     </span>
-                    <span className="data nowrap" style={{ color: me ? 'var(--color-toner)' : 'var(--color-bone)' }}><b>{Math.min(r.fights, 3)} of 3</b> fights</span>
+                    <span className="data nowrap" style={{ color: me ? 'var(--color-toner)' : 'var(--color-bone)' }}><b>{Math.min(r.fights, RANK_NEED[scope])} of {RANK_NEED[scope]}</b> fight{RANK_NEED[scope] === 1 ? '' : 's'}</span>
                   </Link>
                 </li>
               )
@@ -137,7 +140,7 @@ function TopOne({ r, f, me }: { r: FighterStats; f?: Fighter; me: boolean }) {
       <div>
         <p className="n" aria-hidden="true">1</p>
         <Link className="t-sub" to={`/app/fighters/${r.fighter_id}`} style={{ display: 'block', marginTop: 6, textDecoration: 'none', color: 'inherit' }}>
-          {isChampion(f) && <ChampionBelt size={22} label="Champion" className="mr-1" />}<bdi>{r.nickname}</bdi>
+          {isChampion(r) && <ChampBelt size={22} />}<bdi>{r.nickname}</bdi>
           {me && <Stamp tone="ink" size="sm" rot={-4} style={{ marginLeft: 6, verticalAlign: 2 }}>You</Stamp>}
         </Link>
         <p className="data-lg">{fmtNum(r.elo)} <span className="label">Elo</span></p>

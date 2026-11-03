@@ -137,8 +137,9 @@ reset role;
 
 select is(
   (select array_to_string(proargnames, ',') from pg_proc where proname = 'public_next_fight' and pronamespace = 'public'::regnamespace),
-  'id,title,lock_at,scheduled_at,status,red_nickname,blue_nickname,red_weight_kg,blue_weight_kg,is_main_event',
-  'public_next_fight returns only id/title/times/status/nicknames/weights/main-event flag');
+  'id,title,lock_at,scheduled_at,status,red_nickname,blue_nickname,red_weight_kg,blue_weight_kg,is_main_event,'
+  || 'is_title_fight,champion_side,champion_nickname',   -- wave B: title flag + champion nickname
+  'public_next_fight returns only id/title/times/status/nicknames/weights/main-event/title flags');
 
 -- ===========================================================================
 -- 4. Admin setup: fighters + fights
@@ -591,7 +592,7 @@ select is((select string_agg(jobname || '=' || schedule, ';' order by jobname) f
           'auto-lock=* * * * *;weekly-points=0 21 * * 0', 'cron jobs scheduled');
 select is((select string_agg(tablename::text, ',' order by tablename::text) from pg_publication_tables
             where pubname = 'supabase_realtime' and schemaname = 'public'),
-          'fight_pools,fights,reactions', 'realtime publication tables');
+          'fight_pools,fights,live_scores,reactions', 'realtime publication tables (wave B: + live_scores)');
 select results_eq($$ select public, file_size_limit::bigint from storage.buckets where id = 'fighter-photos' $$,
                   $$ values (false, 5242880::bigint) $$, 'private fighter-photos bucket, 5MB');
 select is_empty($$

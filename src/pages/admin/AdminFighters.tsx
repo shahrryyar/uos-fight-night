@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
-import { record } from '../../lib/hooks'
+import { fmtDay, record } from '../../lib/hooks'
 import { fmtNum } from '../../lib/copy'
 import type { Fighter } from '../../lib/types'
 import { resizeImage } from '../../components/admin/resizeImage'
@@ -10,6 +10,7 @@ import {
 } from '../../components/ui'
 import { FieldGroup, FormError, LoadError, SectionHead, focusFirstInvalid, must, useAction } from '../../components/admin/ui'
 import { kgLabel } from '../../components/admin/fightTypes'
+import { AwardBelt, ChampBelt, useChampion } from '../../components/belt'
 
 const BUCKET = 'fighter-photos'
 /** DESIGN 8 photo direction, shown at the upload so new photos halftone well. */
@@ -44,6 +45,7 @@ export default function AdminFighters() {
   const [editing, setEditing] = useState<Draft | null>(null)
   const load = useAction()
   const loadRun = load.run
+  const { champion } = useChampion()
 
   const refresh = useCallback(() => loadRun(async () => {
     setList(must(await supabase.from('fighters').select('*').order('hidden').order('nickname')) as Fighter[])
@@ -59,7 +61,14 @@ export default function AdminFighters() {
     <section className="adm-section" aria-labelledby="roster-h">
       <SectionHead id="roster-h" title="Roster" count={loaded ? list.length : undefined}
         right={<Button variant="bone" size="sm" icon={Plus} onClick={() => setEditing({ ...blank })}>New fighter</Button>}
-        sub="Tap a fighter to edit their file or photo." />
+        sub="Tap a fighter to edit their file, photo or title belt." />
+      {loaded && (
+        <p className="adm-champ t-help">
+          {champion
+            ? <><ChampBelt size={28} /><span>Champion: <b><bdi>{champion.nickname}</bdi></b>, since <span className="data nowrap">{fmtDay(champion.since)}</span>. Open their file to vacate the belt.</span></>
+            : <span>The title belt is vacant. Open a fighter's file to award it.</span>}
+        </p>
+      )}
       <LoadError error={load.error} what="the roster" onRetry={() => void refresh()} busy={load.busy} />
       {!loaded && !load.error && <Loading label="Loading the roster…" shape="rows" />}
       {loaded && list.length === 0 && <EmptyState title="No fighters yet" body="Add the first one with New fighter." />}
@@ -69,7 +78,7 @@ export default function AdminFighters() {
             <button type="button" className="adm-row" onClick={() => setEditing(toDraft(f))} aria-label={`Edit ${f.nickname}`}>
               <HalftonePhoto path={f.photo_path} name={f.nickname} size={48} ink="bone" />
               <span style={{ minWidth: 0 }}>
-                <span className="t-sub"><bdi>{f.nickname}</bdi></span>
+                <span className="t-sub">{champion?.fighter_id === f.id && <ChampBelt size={22} />}<bdi>{f.nickname}</bdi></span>
                 <span className="meta">
                   <span className="data"><span className="nowrap">{record(f)}</span>{f.weight_kg != null && <> · <span className="nowrap">{kgLabel(f.weight_kg)}</span></>}</span>
                   {f.hidden && <Stamp tone="bone" size="sm" rot={-2}>Hidden</Stamp>}
@@ -213,6 +222,7 @@ function FighterForm({ initial, onDone, onCancel }: { initial: Draft; onDone: ()
           </div>
         </form>
       </Paper>
+      {d.id && <AwardBelt fighter={{ id: d.id, nickname: initial.nickname || d.nickname, hidden: initial.hidden }} />}
     </section>
   )
 }

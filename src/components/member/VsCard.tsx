@@ -12,13 +12,17 @@ import { fmtDelta, resultStampText } from '../../lib/copy'
 import { METHOD_LABEL, cornerKg, fmtKg, lostBy, type FightRow } from '../../lib/hooks'
 import type { Fighter, Side } from '../../lib/types'
 import { HalftonePhoto, Stamp } from '../ui'
+import { ChampBelt, TitleFightMark, useChampionId } from '../belt'
 import { fmtRecord } from './format'
 
 const nick = (f: Fighter | undefined, s: Side) => f?.nickname ?? (s === 'red' ? 'Red corner' : 'Blue corner')
 
-function Name({ f, side, className }: { f?: Fighter; side: Side; className: string }) {
-  const n = <bdi>{nick(f, side)}</bdi>
-  return f ? <Link className={className} to={`/app/fighters/${f.id}`}>{n}</Link> : <span className={className}>{n}</span>
+/** The name, with the gold belt plate when this fighter holds the title now (B5). */
+function Name({ f, side, className, champId, belt = 24 }: { f?: Fighter; side: Side; className: string; champId?: string | null; belt?: number }) {
+  const champ = !!f && champId === f.id
+  const n = <>{champ && <ChampBelt size={belt} />}<bdi>{nick(f, side)}</bdi></>
+  const cls = champ ? `${className} has-champ` : className
+  return f ? <Link className={cls} to={`/app/fighters/${f.id}`}>{n}</Link> : <span className={cls}>{n}</span>
 }
 
 interface DuelProps {
@@ -32,6 +36,7 @@ interface DuelProps {
 }
 
 export function Duel({ fight, red, blue, priority, landResult }: DuelProps) {
+  const champId = useChampionId()
   const settled = fight.status === 'settled' && !!fight.winner_side
   const corner = (side: Side, f?: Fighter) => {
     const won = settled && fight.winner_side === side
@@ -44,7 +49,7 @@ export function Duel({ fight, red, blue, priority, landResult }: DuelProps) {
             <Stamp fill className="result-stamp" {...(landResult ? { 'data-land': '' } : {})}>{resultStampText(fight.method)}</Stamp>
           )}
         </div>
-        <Name f={f} side={side} className="fname t-bout" />
+        <Name f={f} side={side} className="fname t-bout" champId={champId} belt={28} />
         {settled && (
           <p className="method">{won ? (fight.finish_move?.trim() || (fight.method ? METHOD_LABEL[fight.method] : 'Winner')) : lostBy(fight.method)}</p>
         )}
@@ -53,6 +58,7 @@ export function Duel({ fight, red, blue, priority, landResult }: DuelProps) {
   }
   return (
     <>
+      {fight.is_title_fight && <TitleFightMark className="duel-title" />}
       <div className={settled ? 'duel duel--settled' : 'duel'}>
         {corner('red', red)}
         {!settled && <Stamp size="lg" fill className="vs" aria-hidden="true">VS</Stamp>}
@@ -99,6 +105,7 @@ export function ScoreRow({ fight, compact }: { fight: FightRow; compact?: boolea
 
 /** Undercard matchup on ink. Thumbnails hide below 360px (CSS) so names never break mid-word. */
 export function BoutVs({ fight, red, blue }: { fight: FightRow; red?: Fighter; blue?: Fighter }) {
+  const champId = useChampionId()
   const meta = (side: Side, f?: Fighter) => {
     const kg = fmtKg(cornerKg(fight, side, f)).replace(' ', ' ')
     const rec = f ? fmtRecord(f) : ''
@@ -107,11 +114,12 @@ export function BoutVs({ fight, red, blue }: { fight: FightRow; red?: Fighter; b
   }
   return (
     <>
+      {fight.is_title_fight && <TitleFightMark onInk belt={26} className="bout-title" />}
       <div className="bout-vs">
         <HalftonePhoto path={red?.photo_path} name={nick(red, 'red')} ink="bone" size={48} alt="red corner" />
-        <Name f={red} side="red" className="nm nm--red" />
+        <Name f={red} side="red" className="nm nm--red" champId={champId} belt={20} />
         <span className="vs" aria-hidden="true">vs</span>
-        <Name f={blue} side="blue" className="nm nm--blue" />
+        <Name f={blue} side="blue" className="nm nm--blue" champId={champId} belt={20} />
         <HalftonePhoto path={blue?.photo_path} name={nick(blue, 'blue')} ink="bone" size={48} alt="blue corner" />
       </div>
       <div className="bout-meta data">{meta('red', red)}{meta('blue', blue)}</div>

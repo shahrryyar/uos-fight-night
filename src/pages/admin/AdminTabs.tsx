@@ -11,6 +11,7 @@ export const adminTabs = [
   { to: '/admin/members', label: 'Members' },
   { to: '/admin/points', label: 'Points' },
   { to: '/admin/log', label: 'Log' },
+  { to: '/admin/season', label: 'Season' },
 ] as const
 
 /** `nav.tabs.tabs--5`: five equal columns that all fit at 320px. NavLink sets aria-current="page",

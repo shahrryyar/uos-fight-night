@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
 import {
   cardDateOf, fmtCardDay, fmtDay, fmtKg, fmtMonthYear, fmtScore, isChampion, lostBy, methodPhrase, must, record, todayCard,
   useAsync, type FighterStats, type FightResult, type FightRow,
@@ -8,6 +9,8 @@ import {
 import { fmtNum } from '../lib/copy'
 import type { Fighter } from '../lib/types'
 import { ChampionBelt } from '../components/brand'
+import { TitleReigns } from '../components/belt'
+import { BadgeSection } from '../components/badges'
 import { Alert, ButtonLink, CaretLeft, EmptyState, Field, HalftonePhoto, Loading, Paper, Select, Stamp } from '../components/ui'
 
 interface Data {
@@ -54,11 +57,13 @@ function stateStamp(next: FightRow | null): string | null {
 
 export default function FighterProfile() {
   const { id = '' } = useParams()
+  const myFighter = useAuth().profile?.fighter_id ?? null
   const st = useAsync<Data>(async () => {
     const [f, r, count, results, roster, next] = await Promise.all([
       supabase.from('fighters').select('*').eq('id', id).maybeSingle(),
       supabase.from('fighter_rankings').select('*').eq('fighter_id', id).maybeSingle(),
-      supabase.from('fighter_rankings').select('fighter_id', { count: 'exact', head: true }).eq('ranked', true),
+      // Ranks opens on the Season view, so the profile shows the same season rank (CONTRACT B7)
+      supabase.from('fighter_rankings').select('fighter_id', { count: 'exact', head: true }).eq('season_ranked', true),
       supabase.from('fight_results').select('*').eq('fighter_id', id).order('settled_at', { ascending: false }),
       supabase.from('fighters').select('*'),
       supabase.from('fights').select('*').in('status', ['scheduled', 'open', 'locked'])
@@ -104,7 +109,7 @@ export default function FighterProfile() {
 
       <div className="who">
         <h1 className="t-title"><bdi>{f.nickname}</bdi></h1>
-        {isChampion(f) && (
+        {isChampion(d.rank) && (
           <p className="label nowrap" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
             <ChampionBelt size={28} />Champion
           </p>
@@ -121,13 +126,17 @@ export default function FighterProfile() {
         <div><p className="t-score nowrap" style={{ fontSize: scoreSize(record(f)) }}>{record(f)}</p><span className="label">Record</span></div>
         <div className="leaders data">
           <Leader k="Elo" v={fmtNum(f.elo)} />
-          <Leader k="Rank" v={d.rank?.ranked && d.rank.rank ? `#${d.rank.rank} of ${d.rankedCount}` : 'Not yet'} />
+          <Leader k="Season rank" v={d.rank?.season_ranked && d.rank.season_rank ? `#${d.rank.season_rank} of ${d.rankedCount}` : 'Not yet'} />
           <Leader k="Streak" v={streakText(f.streak)} />
         </div>
       </section>
-      {!d.rank?.ranked && (
-        <p className="t-help c-2" style={{ marginTop: 10 }}>Ranks start after 3 fights. {Math.min(fights, 3)} of 3 so far.</p>
+      {!d.rank?.season_ranked && (
+        <p className="t-help c-2" style={{ marginTop: 10 }}>
+          {fights > 0 ? 'No fights yet this season. One fight gets a season rank.' : 'One fight gets a season rank.'}
+        </p>
       )}
+
+      <TitleReigns fighterId={f.id} />
 
       <Paper as="section" className="section" aria-labelledby="sheet" style={{ marginTop: 28 }}>
         <h2 id="sheet" className="t-sub">Stat sheet</h2>
@@ -157,6 +166,8 @@ export default function FighterProfile() {
           </>
         )}
       </Paper>
+
+      <BadgeSection kind="fighter" id={f.id} own={!!myFighter && myFighter === f.id} />
 
       <section className="section last5" aria-labelledby="l5">
         <div className="section-head">

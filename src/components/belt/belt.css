@@ -1,0 +1,62 @@
+/* ---------- title belt (B5). Gold = <ChampionBelt/> only, next to the champion or a title bout ---------- */
+
+/* "Title fight": the belt plate beside a crisp label (toner on paper, bone on ink). Never a second stamp. */
+.title-mark { display: flex; align-items: center; gap: 8px; margin: 0; }
+.title-mark .label { color: var(--color-toner); }
+.title-mark--ink .label { color: var(--color-bone); }
+
+/* belt + CHAMPION label (corner line, profile hero) */
+.champ-tag { display: inline-flex; align-items: center; gap: 6px; }
+.champ-belt { margin-inline-end: 6px; vertical-align: -3px; }
+
+/* "Current champion" sheet at the top of Ranks: flat paper; the belt plate heads it, photo + facts below */
+.champ-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px 14px; align-items: center; margin-top: 18px; padding-bottom: 26px; }
+.champ-card--vacant { display: block; }
+.champ-card .label { color: var(--color-toner-mute); }
+.champ-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: -4px 0 0; }
+.champ-name { display: block; color: inherit; text-decoration: none; text-wrap: balance; overflow-wrap: anywhere; }
+@media (hover: hover) { .champ-name:hover { text-decoration: underline 3px; text-underline-offset: .14em; } }
+.champ-facts { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+@media (max-width: 359px) {
+  .champ-card { grid-template-columns: 72px minmax(0, 1fr); gap: 10px 12px; }
+  .champ-card .t-head { font-size: 1.5rem; }
+}
+
+/* profile: title reigns on ink */
+.reigns .reign { grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 14px; padding-block: 12px; }
+.reigns .reign .belt, .reigns .reign .badge-seal { margin-top: 2px; }
+.reigns .reign .data { display: block; margin-top: 4px; color: var(--color-bone-2); }
+.reigns .reign .data + .data { margin-top: 0; }
+.reigns .reign-how, .reigns .reign-note { display: block; margin-top: 4px; color: var(--color-bone-2); }
+.reigns .reign-note { color: var(--color-bone); }
+
+/* admin: award / vacate */
+.award-belt-h { display: flex; align-items: center; gap: 10px; }
+.award-belt .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.award-belt-form { display: grid; gap: 14px; }
+.award-belt-form .actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.award-belt-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.award-belt-list li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: baseline; }
+.award-belt-list li::before { content: ""; width: 8px; height: 8px; background: var(--color-red); translate: 0 -1px; }
+.award-belt .t-help { color: var(--color-toner-mute); }
+.adm-champ { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 12px; padding: 10px 0; color: var(--color-bone-2); }
+.adm-champ b { color: var(--color-bone); }
+
+/* VsCard: title mark above the duel (paper) or the undercard matchup (ink) */
+.duel-title { margin-top: 14px; }
+.duel-title + .duel { margin-top: 10px; }
+.bout-title { margin-top: 10px; }
+/* the belt sits above the champion's name so the name keeps its full column (no mid-word breaks at 320px) */
+.duel .fname.has-champ, .bout-vs .nm.has-champ { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; }
+.bout-vs .nm--blue.has-champ { align-items: flex-end; }
+.duel .fname.has-champ > bdi, .bout-vs .nm.has-champ > bdi { max-width: 100%; }
+.has-champ > .champ-belt { flex: none; margin: 0; }
+
+/* landing flyer (public): title mark under the snipe, belt in the champion's corner line, reigning champion line */
+.flyer .flyer-titlemark { margin-top: 18px; }
+.flyer--stamped .flyer-titlemark { margin-top: 12px; }
+.flyer .flyer-titlemark + .t-poster.first { margin-top: 14px; }
+.flyer .corner-line:has(.flyer-champ) { flex-wrap: wrap; row-gap: 6px; }
+.flyer .flyer-champ { margin-left: auto; color: var(--color-toner); }
+.flyer .flyer-reign { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.flyer .flyer-reign .label { color: var(--color-toner-mute); }

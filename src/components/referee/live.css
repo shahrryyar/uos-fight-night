@@ -1,0 +1,35 @@
+/* Members' live score strip (B4). Ink stock: a toner block inside the paper sheet, like the pick ticket,
+   so it reads as the live scoreboard and not as part of the printed card. Corner identity is the 3px
+   underline on each name (same as the undercard rows), never colour alone: position + sr text too. */
+
+.live-strip {
+  margin-top: 14px; padding: 12px 14px 14px;
+  background: var(--color-toner); color: var(--color-bone);
+}
+.live-strip--ink { background: transparent; margin-top: 12px; box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+.live-top { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.live-round { color: var(--color-bone-2); }
+.live-round b { color: var(--color-bone); }
+.live-clock { margin-left: auto; display: inline-flex; align-items: baseline; gap: 8px; }
+.live-clock .label { color: var(--color-bone-2); font-size: .75rem; }
+.live-time { font: 900 2rem/1 var(--font-display); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+.live-clock.is-up .live-time { color: var(--color-red); }   /* 32px display: large text, 3.4:1 on toner */
+.live-clock.is-paused .live-time { color: var(--color-bone-2); }
+
+.live-score {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
+  margin-top: 10px;
+}
+.live-nm {
+  font: 800 1.125rem/1.1 var(--font-display); text-transform: uppercase; text-wrap: balance; overflow-wrap: anywhere;
+  text-underline-offset: .18em; text-decoration-thickness: 3px; text-decoration-line: underline;
+}
+.live-nm--red  { text-decoration-color: var(--color-red); }
+.live-nm--blue { text-decoration-color: var(--color-blue); text-align: end; }
+.live-pts { font: 900 3.5rem/.8 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.live-pts .dash { color: var(--color-bone-2); font-size: .6em; margin-inline: .14em; vertical-align: .2em; }
+
+@media (max-width: 359px) {
+  .live-pts { font-size: 2.75rem; }
+  .live-nm { font-size: 1rem; }
+}

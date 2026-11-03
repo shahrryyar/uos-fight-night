@@ -1,0 +1,127 @@
+/* Seasons (CONTRACT B7): Ranks scope toggle, /app/seasons history, admin Season tab.
+   Built only from tokens (DESIGN 5, 6): square corners, no shadows, lists on ink, sheets on paper. */
+
+/* ---------- Ranks: Season / All-time (pressed buttons on ink) ---------- */
+.scope { display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(6.5rem, auto); margin-top: 16px; box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+.scope-btn {
+  min-height: 44px; padding: 4px 16px; border: 0; border-radius: 0; background: transparent; color: var(--color-bone-2);
+  font: 800 .9375rem/1 var(--font-display); text-transform: uppercase; white-space: nowrap; cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+  touch-action: manipulation;
+}
+.scope-btn[aria-pressed="true"] { background: var(--color-bone); color: var(--color-toner); }
+.scope-btn:focus-visible { outline: 3px solid var(--color-bone); outline-offset: 2px; position: relative; }
+@media (hover: hover) { .scope-btn[aria-pressed="false"]:hover { color: var(--color-bone); } }
+@media (prefers-reduced-motion: reduce) { .scope-btn { transition: none; } }
+
+.ranks-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+.seasons-link {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--color-bone);
+  font: 700 var(--text-body-sm)/1.2 var(--font-body); text-decoration: underline; text-underline-offset: .2em; white-space: nowrap;
+}
+.seasons-link svg { font-size: 1rem; }
+
+/* ---------- /app/seasons ---------- */
+.pg-seasons .lede { margin-top: 6px; color: var(--color-bone-2); max-width: var(--measure, 34rem); }
+.pg-seasons .now { margin-top: 24px; padding-top: 14px; box-shadow: inset 0 var(--rule-heavy) 0 var(--color-bone); }
+.pg-seasons .now-top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.pg-seasons .now-top .t-head { overflow-wrap: anywhere; text-wrap: balance; }
+.pg-seasons .now .data.since { margin-top: 6px; color: var(--color-bone-2); }
+.pg-seasons .now .leaders { margin-top: 14px; }
+.pg-seasons .now .btn { margin-top: 16px; }
+
+/* leader lines on ink: label, dotted rule, value. Below 360px the label sits above the value. */
+.ssn-lead { display: grid; grid-template-columns: auto minmax(12px, 1fr) minmax(0, max-content); align-items: baseline; gap: 8px; min-height: 28px; }
+.ssn-lead .label { color: var(--color-bone-2); }
+.ssn-lead .dots { border-bottom: 2px dotted var(--color-ink-rule); translate: 0 -4px; }
+.ssn-lead .v { text-align: end; font: 800 1.125rem/1.1 var(--font-display); text-transform: uppercase; overflow-wrap: anywhere; text-wrap: balance; }
+.ssn-lead .v .data { font-weight: 700; text-transform: none; }
+.ssn-lead .v .belt { vertical-align: -4px; margin-inline-end: 4px; }
+/* a value that links (champion): a full 44px tap target (DESIGN 2), underlined so it reads as a link */
+.ssn-lead .v .lead-link {
+  display: inline-flex; align-items: center; justify-content: flex-end; min-height: 44px; max-width: 100%;
+  color: inherit; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .15em;
+  touch-action: manipulation;
+}
+.ssn-lead .v .lead-link .belt { flex: none; vertical-align: 0; }
+.ssn-lead .v .lead-link:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
+.ssn-lead:has(.lead-link) { align-items: center; }
+@media (max-width: 359px) { .ssn-lead .v .lead-link { justify-content: flex-start; } }
+@media (max-width: 359px) {
+  .ssn-lead { grid-template-columns: 1fr; gap: 2px; padding-block: 4px; }
+  .ssn-lead .dots { display: none; }
+  .ssn-lead .v { text-align: start; }
+}
+.paper .ssn-lead .label { color: var(--color-toner-mute); }
+.paper .ssn-lead .dots { border-color: var(--color-toner-rule); }
+
+.pg-seasons .past { margin-top: 40px; }
+.pg-seasons .past .section-head .count { font: 700 var(--text-data-lg)/1 var(--font-data); color: var(--color-bone-2); margin-left: 10px; }
+.ssn-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; list-style: none; margin: 0; padding: 0; }
+
+/* one finished season: a flat result sheet (material B) */
+.ssn-sheet .ssn-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; }
+.ssn-sheet .ssn-top .t-head { overflow-wrap: anywhere; text-wrap: balance; }
+.ssn-sheet .ssn-top .t-head { min-width: 0; }
+.ssn-sheet .ssn-dates { margin-top: 6px; color: var(--color-toner-mute); }
+.ssn-sheet .ssn-top .stamp { flex: none; margin-top: 2px; }
+.ssn-sheet .ssn-crown { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: var(--rule-heavy) solid var(--color-toner); }
+.ssn-sheet .ssn-crown > div { min-width: 0; }
+.ssn-sheet .ssn-crown .label { display: block; color: var(--color-toner-mute); }
+.ssn-sheet .ssn-crown .who { display: block; margin-top: 6px; overflow-wrap: anywhere; text-wrap: balance; color: inherit; text-decoration: none; }
+.ssn-sheet .ssn-crown a.who { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .15em; }
+.ssn-sheet .ssn-crown .belt-line { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ssn-sheet .ssn-crown .data { display: block; margin-top: 4px; color: var(--color-toner-mute); }
+.ssn-sheet .ssn-crown .none { margin-top: 6px; color: var(--color-toner-mute); }
+.ssn-sheet h4 { margin-top: 18px; }
+.ssn-sheet .how { margin-top: 6px; table-layout: fixed; }
+.ssn-sheet .how th:first-child, .ssn-sheet .how td:first-child { width: 1.75rem; font: 700 1rem/1.3 var(--font-data); }
+.ssn-sheet .how th:nth-child(3), .ssn-sheet .how td:nth-child(3) { width: 3.5rem; }
+.ssn-sheet .how th:nth-child(4), .ssn-sheet .how td:nth-child(4) { width: 3.75rem; }
+.ssn-sheet .how th:nth-child(2) { text-align: start; }
+.ssn-sheet .how td:nth-child(2) { font: 800 1.0625rem/1.15 var(--font-display); text-transform: uppercase; text-align: start; overflow-wrap: anywhere; text-wrap: balance; padding-inline-end: 8px; }
+.ssn-sheet .how td:nth-child(2) a { color: inherit; text-decoration: none; }
+/* profile links on the sheet are standalone controls: 44px tall tap targets (DESIGN 2) */
+.ssn-sheet .ssn-crown a.who { display: inline-flex; align-items: center; min-height: 44px; touch-action: manipulation; }
+.ssn-sheet .how td:nth-child(2):has(> a) { padding-block: 0; }
+.ssn-sheet .how td:nth-child(2) > a { display: flex; align-items: center; gap: 4px; min-height: 44px; touch-action: manipulation; }
+.ssn-sheet .how td:nth-child(2) > a .belt { flex: none; margin-inline-end: 0; vertical-align: 0; }
+.ssn-sheet a:focus-visible { outline: 3px solid var(--color-toner); outline-offset: 2px; }
+.ssn-sheet .how .belt { vertical-align: -3px; margin-inline-end: 4px; }
+.ssn-sheet .ssn-empty { margin-top: 8px; color: var(--color-toner-mute); }
+
+@media (max-width: 359px) {
+  .ssn-sheet .ssn-crown { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* ---------- admin Season tab ---------- */
+.pg-admin .ssn-stats { margin-top: 12px; }
+.pg-admin .ssn-stats .ssn-lead + .ssn-lead { margin-top: 6px; }
+.pg-admin .ssn-stats .t-head { overflow-wrap: anywhere; text-wrap: balance; }
+.pg-admin .ssn-stats .data.since { display: block; margin-top: 6px; color: var(--color-bone-2); }
+.pg-admin .ssn-stats .leaders { margin-top: 14px; }
+.pg-admin .ssn-block { margin-top: 18px; padding: 12px; border: var(--rule) dashed var(--color-toner-rule); }
+.pg-admin .ssn-block .note-line + .note-line { margin-top: 8px; }
+.pg-admin .ssn-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pg-admin .ssn-steps li { display: grid; grid-template-columns: 1.25rem 1fr; gap: 8px; align-items: start; font: 400 1rem/1.45 var(--font-body); }
+.pg-admin .ssn-steps li svg { font-size: 1.125rem; translate: 0 3px; color: var(--color-toner); }
+.pg-admin .ssn-steps li b { font-weight: 700; }
+.pg-admin .ssn-steps .final svg { color: var(--color-red); }
+.pg-admin .ssn-confirm .input { font: 700 1.125rem/1.2 var(--font-data); letter-spacing: .04em; }
+.pg-admin .ssn-done .leaders { margin-top: 12px; }
+.pg-admin .ssn-done .actions { margin-top: 16px; }
+.pg-admin .ssn-blocker { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: start; padding: 12px; background: var(--color-toner); color: var(--color-bone); }
+.pg-admin .ssn-blocker svg { font-size: 1.5rem; color: var(--color-bone); grid-row: span 2; }
+.pg-admin .ssn-blocker p { font: 400 var(--text-body-sm)/1.45 var(--font-body); }
+.pg-admin .ssn-blocker b { font-weight: 700; }
+.pg-admin .ssn-blocker a { color: var(--color-bone); font-weight: 700; }
+
+/* Six admin sections (Season added): a 3 x 2 grid so every tab keeps a readable label at 320px. */
+.pg-admin .tabs--5:has(> .tab:nth-child(6)) { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+.pg-admin .tabs--5:has(> .tab:nth-child(6)) .tab { font-size: .9375rem; padding-inline: 2px; }
+
+/* past-season belt holder: the bone/toner Crown seal, never gold (gold = current champion only) */
+.ssn-seal.badge-seal { border-width: 2px; vertical-align: -4px; }
+.ssn-sheet .how td:nth-child(2) > a .ssn-seal, .ssn-sheet .how .ssn-name .ssn-seal { flex: none; }
+.ssn-sheet .how .ssn-name { display: flex; align-items: center; gap: 6px; }
+.ssn-sheet .how td:nth-child(2) > a { gap: 6px; }

@@ -145,6 +145,15 @@ update the four absolute `og:` / `twitter:` URLs in `index.html` so link preview
 working. Also add the new domain to `site_url` and `additional_redirect_urls` in
 `supabase/config.toml`, then run `supabase config push` again.
 
+### 3. Visitor stats (Cloudflare Web Analytics)
+
+Visitor counts come from Cloudflare, not from the app. There is no code or tracking script to
+add. Turn it on once in the dashboard: **Workers & Pages → uos-fight-night → Metrics → Web
+Analytics → Enable**. Cloudflare then adds its beacon to every Pages response and shows page
+views and visitors under **Analytics & Logs → Web Analytics**. It sets no cookies and stores no
+personal data, so the privacy notes below still hold. To turn it off, disable it in the same
+place. Details: `supabase/README.md` → "Visitor stats (B8)".
+
 ## Bootstrapping the first admin
 
 Nobody can sign up, so the first admin is created by hand, once, with the Auth Admin API and

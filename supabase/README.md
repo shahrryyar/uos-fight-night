@@ -11,13 +11,17 @@ migrations/
   20261102000003_cron_realtime_storage.sql pg_cron jobs, realtime publication, fighter-photos bucket
   20261102000004_wave_a.sql               Wave A: admin-created accounts (invites/hook dropped), match
                                           stats, correct result, consent/no contest, bout order
+  20261103000005_wave_b.sql               Wave B: live scoring, title belt, badges, seasons;
+                                          correct result also undoes belt/badges/season counters
 functions/admin-create-user/index.ts      admin creates an account (service role)
 functions/admin-reset-password/index.ts   admin sets a member's password (service role)
 tests/fight_night_test.sql                pgTAP core suite (supabase test db)
 tests/wave_a_test.sql                     pgTAP Wave A suite
 tests/wave_a_race_test.sql                pgTAP concurrency test (correct vs settle), uses dblink
+tests/wave_b_test.sql                     pgTAP Wave B suite (live scores, belt, badges, seasons)
 tests/http_auth_edge_test.sh              curl checks: signup disabled, admin-create-user
-seed.sql                                  LOCAL ONLY dev data (3 accounts, 4 fighters, 1 card)
+seed.sql                                  LOCAL ONLY dev data (3 accounts, 4 fighters, 3 cards, a
+                                          champion, badges, a running live score)
 seed_admin.sql                            how to bootstrap the first production admin
 config.toml                               auth: signup OFF, min password 8, no confirmations, no hooks
 ```
@@ -57,6 +61,11 @@ Wave A adds: `SCORE_MISMATCH, LATER_FIGHT_EXISTS, NOT_PARTICIPANT, NOT_SCHEDULED
 REASON_REQUIRED, MAIN_EVENT_EXISTS, WEAK_PASSWORD` plus `INVALID_ROUNDS, INVALID_SCORE,
 INVALID_WEIGHT, INVALID_NOTE, INVALID_FINISH_MOVE, INVALID_BOUT_ORDER, INVALID_CARD,
 INVALID_KIND, INVALID_DISPLAY_NAME`.
+Wave B adds: `NOT_REFEREE, FIGHT_NOT_LOCKED, INVALID_ACTION, INVALID_VALUE, ROUND_OVER,
+NO_CHAMPION, ALREADY_CHAMPION, BELT_CHANGED, SEASON_CLOSED, CONFIRM_REQUIRED, INVALID_NAME,
+NO_SEASON, FIGHTS_IN_PROGRESS` (and reuses `INVALID_SCORE, INVALID_ROUNDS, INVALID_KIND,
+INVALID_NOTE, PARTICIPANT, ADMIN_HAS_BET, ALREADY_SETTLED, FIGHT_CANCELLED, FIGHT_NOT_FOUND,
+FIGHTER_NOT_FOUND`).
 
 ## Local development
 
@@ -78,6 +87,10 @@ Local accounts from `seed.sql` (log in at `http://localhost:5173/login`):
 | `admin` | `localadmin123` | admin |
 | `member1` | `localmember123` | member, linked to fighter "The Hallway Hurricane" |
 | `member2` | `localmember123` | member, linked to fighter "Mattress Mauler" |
+
+Wave B demo data in the seed: "The Hallway Hurricane" holds the belt (won "Vacant Title" last
+week, badges `first_win` + `belt_holder`), member2 has `high_roller`, the open main event is a
+title fight, and a locked "Tonight" bout has a running live score (round 2, 3-1).
 
 These exist only locally. `db push` never runs `seed.sql`.
 
@@ -202,13 +215,58 @@ Inspect jobs with `select * from cron.job;` and runs with
 - Extra read helpers (security definer, member-only): `get_leaderboard_bettors()` (backs
   the `leaderboard_bettors` view) and `get_all_fight_vote_totals()` (backs the
   `fight_vote_totals` view).
-- Realtime: subscribe to `postgres_changes` on `fights`, `fight_pools` and `reactions`.
-  RLS applies, so only members get events.
+- Realtime: subscribe to `postgres_changes` on `fights`, `fight_pools`, `reactions` and
+  `live_scores`. RLS applies, so only members get events.
+
+### Wave B (live scoring, belt, badges, seasons)
+
+- **Live scoring (B4).** `admin_live_update(p_fight_id, p_action, p_value default null)` with
+  `start | pause | next_round | red_add | blue_add | set_round_seconds | reset`. Allowed for
+  `is_referee()` (admins today; wave C adds the referee role there), never for a participant
+  (current or past link) or for an admin with an active pick on the fight (`ADMIN_HAS_BET`).
+  The fight must be `locked`; an `open` fight past `lock_at` is locked on the spot, anything
+  else raises `FIGHT_NOT_LOCKED`. The clock is server-side: `round_started_at` (start of the
+  running segment) + `accumulated_seconds`. Read `get_live_score(p_fight_id)` or the
+  `live_score_state` view for `elapsed_seconds / remaining_seconds / time_up / is_live /
+  server_now`. Every call is logged as `live_update`.
+- **Title belt (B5).** `belt_reigns` (one open reign at most). ANY settled loss by the
+  champion moves the belt to the winner (`lost_fight_id` / `won_fight_id`).
+  `admin_award_belt(p_fighter_id, p_note)` crowns a champion or, with `null`, vacates.
+  `fights.is_title_fight` = champion in the fight: set on insert, refreshed for
+  scheduled/open/locked fights whenever the belt moves, frozen at settle. Views
+  `current_champion(fighter_id, nickname, since, defenses, ...)` and `belt_reign_history`.
+  `public_next_fight()` also returns `is_title_fight, champion_side, champion_nickname`.
+- **Badges (B6).** `badge_catalog` (label, description, Phosphor icon name), `fighter_badges`,
+  `user_badges`; one row per award with the `fight_id` that earned it. Awarded inside
+  `admin_settle_fight`; `perfect_night` is re-synced by a trigger on every fight status change
+  (so a cancelled last bout completes the card). `list_badges(p_kind, p_id)` returns one row per
+  code. Existing history was back-filled by the migration.
+- **Seasons (B7).** `seasons` (one open). `admin_end_season('END SEASON', p_name_next)` needs no
+  open/locked fight, snapshots rankings + balances, records the champion (belt holder, else top
+  Elo of the season) and top bettor, writes one `season_reset` ledger row per active member to
+  bring them to exactly 1000, resets every fighter to Elo 1000 and 0-0 `season_wins /
+  season_losses` (all-time W-L kept), then opens the next season. The belt is kept.
+  `fighter_rankings` gains `season_wins, season_losses, season_fights, season_ranked,
+  season_rank, is_champion` (existing columns unchanged).
+- **Correct result (B1, extended).** Also undoes a belt transfer made by the fight (the old
+  reign reopens), deletes badges earned by it, re-syncs `sharp_eye` / `perfect_night`, and
+  takes back season counters. Refuses with `BELT_CHANGED` if the belt won in that fight has
+  since been reassigned/vacated, and `SEASON_CLOSED` for a fight settled before the current
+  season started.
+- **Locks.** settle, correct, award belt and end season take one advisory lock
+  (`private.lock_belt()`) before any row lock, so they run one at a time.
+
+## Visitor stats (B8)
+
+Nothing to build or deploy. In the Cloudflare dashboard: Workers & Pages → the Pages project →
+Metrics → Web Analytics → Enable. Cloudflare injects its beacon on Pages automatically; it sets
+no cookies and needs no code or consent banner. Only enable a token-based snippet in
+`index.html` if the automatic setup is unavailable.
 
 ## Tests
 
 ```bash
-supabase db reset && supabase test db      # pgTAP: fight_night_test, wave_a_test, wave_a_race_test
+supabase db reset && supabase test db      # pgTAP: fight_night_test, wave_a_*, wave_b_test
 supabase functions serve &                  # then, HTTP checks (signup disabled, admin-create-user):
 bash supabase/tests/http_auth_edge_test.sh
 ```

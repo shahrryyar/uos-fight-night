@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { cardDateOf, fmtKg, isChampion, must, record, todayCard, useAsync, type FightRow } from '../lib/hooks'
 import type { Fighter, FighterRanking } from '../lib/types'
-import { ChampionBelt } from '../components/brand'
+import { ChampBelt } from '../components/belt'
 import { Alert, EmptyState, HalftonePhoto, Loading, Paper, Stamp } from '../components/ui'
 
 interface Tile { f: Fighter; r?: FighterRanking; tonight: boolean }
@@ -44,7 +44,7 @@ export default function Fighters() {
 function FighterTile({ f, r, tonight, priority }: Tile & { priority: boolean }) {
   const kg = fmtKg(f.weight_kg)
   const fights = r?.fights ?? f.wins + f.losses
-  const champ = isChampion(f)
+  const champ = isChampion(r)  // fighter_rankings.is_champion (B5)
   return (
     <li>
       <Paper className="h-full" style={{ padding: '10px 10px 28px' }}>
@@ -54,7 +54,7 @@ function FighterTile({ f, r, tonight, priority }: Tile & { priority: boolean }) 
             {tonight && <Stamp size="sm" fill rot={-5} style={{ position: 'absolute', left: 6, bottom: 6 }}>Tonight</Stamp>}
           </div>
           <p className="t-sub" style={{ marginTop: 10 }}>
-            {champ && <ChampionBelt size={22} label="Champion" className="mr-1" />}<bdi>{f.nickname}</bdi>
+            {champ && <ChampBelt size={22} />}<bdi>{f.nickname}</bdi>
           </p>
           <p className="data c-2" style={{ marginTop: 4 }}>
             <span className="nowrap">{record(f)}</span>{kg && <> · <span className="nowrap">{kg.replace(' ', ' ')}</span></>}

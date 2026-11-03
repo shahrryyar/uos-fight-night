@@ -1,0 +1,159 @@
+/* Referee scoreboard (/admin/ref/:fightId). Bone on the black wall, giant tabular numerals, one thumb.
+   It covers the app chrome (z 35: above the tab bar at 30, under toasts at 40). */
+
+.ref-screen {
+  position: fixed; inset: 0; z-index: 35;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: url(/textures/toner-dark.png) 0 0 / 384px 384px, var(--color-ink);
+  color: var(--color-bone);
+  /* a ref's thumb lands on the same spot over and over: no text selection, no callout, no double-tap zoom */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+}
+.ref-inner {
+  width: 100%; max-width: var(--app-max); margin-inline: auto; min-height: 100%;
+  display: flex; flex-direction: column;
+  padding: max(6px, env(safe-area-inset-top)) var(--gutter) calc(14px + env(safe-area-inset-bottom));
+}
+.ref-board { flex: 1; display: flex; flex-direction: column; }
+
+/* ---------- head ---------- */
+.ref-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; }
+.ref-wake { display: inline-flex; align-items: center; gap: 6px; font: 400 .8125rem/1.2 var(--font-body); white-space: nowrap; }
+.ref-wake svg { font-size: 1rem; flex: none; }
+/* no wake lock: the instruction itself is on screen (touch has no tooltips), up to 3 short lines */
+.ref-wake--warn {
+  align-items: flex-start; max-width: 13.5em; padding-block: 4px;
+  white-space: normal; text-wrap: balance; text-align: left; color: var(--color-bone-2);
+}
+.ref-wake--warn svg { margin-top: .1em; color: var(--color-bone); }
+.ref-wake--warn b { font-weight: 700; color: var(--color-bone); }
+
+.ref-err {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  margin: 4px 0 8px; padding: 8px 4px 8px 12px;
+  background: var(--color-bone); color: var(--color-toner);
+  font: 700 var(--text-body-sm)/1.35 var(--font-body);
+}
+.ref-err > svg { color: var(--color-red); font-size: 1.375rem; }
+.ref-err-x { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--color-toner); font-size: 1.25rem; }
+
+/* ---------- clock ---------- */
+.ref-clock { padding: 8px 0 16px; border-bottom: 1px solid var(--color-ink-rule); }
+.ref-clock-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+.ref-round { font: 800 1.75rem/1 var(--font-display); text-transform: uppercase; letter-spacing: var(--tracking-display); }
+.ref-round .num { font-variant-numeric: tabular-nums; }
+.ref-time {
+  margin: 8px 0 14px; text-align: center;
+  font: 900 clamp(4.75rem, 27vw, 6rem)/.8 var(--font-display); font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.ref-time.is-up { color: var(--color-red); }            /* large text: red on ink 3.80:1 passes */
+.ref-clock-ctl { display: flex; gap: 8px; align-items: stretch; }
+.ref-clock-ctl .btn { min-height: 56px; }
+.ref-clock-ctl .btn--bone { flex: 1 1 0; min-width: 0; }
+.ref-clock-ctl .btn--ghost { flex: none; width: auto; padding-inline: 16px; }
+/* Next (mid-round) sits at the far end, past the round length, away from Start/Pause; it only opens a confirm */
+.ref-clock-ctl .ref-next { color: var(--color-bone-2); box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+.ref-len {
+  display: grid; place-content: center; justify-items: center; gap: 2px; min-width: 64px; padding: 4px 8px;
+  border: 0; background: transparent; color: var(--color-bone-2); box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2);
+  transition-property: background-color, scale; transition-duration: var(--duration-fast), var(--duration-press); transition-timing-function: ease-out;
+}
+.ref-len .data { font-size: 1.0625rem; color: var(--color-bone); }
+.ref-len .label { font-size: .75rem; }
+
+/* ---------- score: two corners on one subgrid so names, numerals and buttons line up ---------- */
+.ref-score {
+  flex: 1; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; row-gap: 8px;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  padding-top: 14px;
+}
+.ref-corner { display: grid; grid-row: span 6; grid-template-rows: subgrid; min-width: 0; }
+.ref-corner .corner { justify-content: flex-start; }
+.ref-name {
+  align-self: start;
+  font: 800 1.1875rem/1.05 var(--font-display); text-transform: uppercase; text-wrap: balance; overflow-wrap: anywhere;
+}
+.ref-pts {
+  align-self: end; text-align: center;
+  font: 900 clamp(4.5rem, 25vw, 6rem)/.8 var(--font-display); font-variant-numeric: tabular-nums;
+  padding: 4px 0 6px;
+}
+.ref-btn {
+  display: grid; place-items: center; width: 100%; border: 0; border-radius: 0; padding: 0;
+  color: var(--color-bone); background: transparent;
+  font: 900 2.5rem/1 var(--font-display); font-variant-numeric: tabular-nums;
+  transition-property: background-color, color, box-shadow, scale;
+  transition-duration: var(--duration-fast), var(--duration-fast), var(--duration-fast), var(--duration-press);
+  transition-timing-function: ease-out;
+}
+.ref-btn--one { align-self: stretch; min-height: clamp(72px, 13dvh, 112px); font-size: 3rem; }
+.ref-btn--two { min-height: clamp(56px, 8.5dvh, 76px); }
+.ref-btn--minus { min-height: 48px; font-size: 1.75rem; color: var(--color-bone-2); box-shadow: inset 0 0 0 var(--rule) var(--color-bone-2); }
+.ref-corner--red  .ref-btn--one { background: var(--color-red); }        /* bone on red 4.58:1 */
+.ref-corner--blue .ref-btn--one { background: var(--color-blue-ink); }   /* bone on blue-ink 5.55:1 */
+.ref-corner--red  .ref-btn--two { box-shadow: inset 0 0 0 var(--rule-heavy) var(--color-red); }
+.ref-corner--blue .ref-btn--two { box-shadow: inset 0 0 0 var(--rule-heavy) var(--color-blue); }
+.ref-btn:disabled { color: var(--color-mute); background: transparent; box-shadow: inset 0 0 0 var(--rule) var(--color-ink-rule); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ref-btn:not(:disabled):active, .ref-len:active { scale: .96; }
+}
+/* instant press colour (no hover on phones): fills darken, outlines fill */
+.ref-corner--red  .ref-btn--one:not(:disabled):active { background: color-mix(in srgb, var(--color-red) 78%, var(--color-ink)); }
+.ref-corner--blue .ref-btn--one:not(:disabled):active { background: color-mix(in srgb, var(--color-blue-ink) 78%, var(--color-ink)); }
+.ref-corner--red  .ref-btn--two:not(:disabled):active { background: color-mix(in srgb, var(--color-red) 30%, transparent); }
+.ref-corner--blue .ref-btn--two:not(:disabled):active { background: color-mix(in srgb, var(--color-blue) 30%, transparent); }
+.ref-btn--minus:not(:disabled):active, .ref-len:active { background: var(--color-ink-2); }
+.ref-screen :focus-visible { outline-color: var(--color-bone); }
+/* bottom sheets are Paper: the ring goes back to toner on bone (DESIGN 5; the rule above would put bone on bone) */
+.ref-screen .paper :focus-visible { outline-color: var(--color-toner); }
+
+/* ---------- foot ---------- */
+.ref-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 16px; }
+.ref-foot .btn--danger { min-height: 52px; }
+
+/* ---------- bottom sheet (confirm / round length) ---------- */
+.ref-sheet-wrap { position: fixed; inset: 0; z-index: 36; }
+.ref-scrim { position: absolute; inset: 0; border: 0; padding: 0; background: rgb(11 11 13 / .62); cursor: default; }
+.ref-sheet { position: absolute; left: 0; right: 0; bottom: 0; max-width: var(--app-max); margin-inline: auto; padding-inline: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .ref-sheet { animation: ref-sheet-in 200ms var(--ease-snap) both; }
+}
+@keyframes ref-sheet-in { from { translate: 0 16px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+.ref-sheet-paper { padding: 30px 16px calc(34px + env(safe-area-inset-bottom)); -webkit-user-select: none; user-select: none; }
+.ref-sheet-paper .t-help { margin-top: 8px; max-width: var(--measure); }
+.ref-sheet-paper .field { margin-top: 14px; }
+.ref-presets { margin-top: 14px; }
+.ref-presets .seg .data { font-size: 1.0625rem; }
+.ref-sheet-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 8px; margin-top: 18px; }
+.ref-final { margin-top: 10px; font: 900 4.5rem/.8 var(--font-display); font-variant-numeric: tabular-nums; }
+.ref-final .dash { color: var(--color-toner); font-size: .6em; margin-inline: .12em; vertical-align: .18em; }
+
+/* shorter phones: keep the whole board on one screen without scrolling */
+@media (max-height: 760px) {
+  .ref-time { font-size: 4.5rem; margin: 6px 0 12px; }
+  .ref-pts { font-size: 4.5rem; }
+  .ref-clock { padding-bottom: 12px; }
+  .ref-score { padding-top: 10px; }
+  .ref-btn--one { min-height: 68px; }
+  .ref-btn--two { min-height: 54px; }
+  .ref-foot { margin-top: 12px; }
+}
+/* SE-class 320x568: everything still on one screen */
+@media (max-height: 640px) {
+  .ref-head { min-height: 44px; }
+  .ref-clock { padding: 2px 0 10px; }
+  .ref-clock-top { min-height: 30px; }
+  .ref-round { font-size: 1.5rem; }
+  .ref-time { font-size: 3.75rem; margin: 2px 0 8px; }
+  .ref-clock-ctl .btn, .ref-len { min-height: 48px; }
+  .ref-score { padding-top: 8px; row-gap: 6px; }
+  .ref-name { font-size: 1.0625rem; }
+  .ref-pts { font-size: 3.75rem; padding: 2px 0 4px; }
+  .ref-btn--one { min-height: 60px; }
+  .ref-btn--two { min-height: 48px; font-size: 2.25rem; }
+  .ref-btn--minus { min-height: 44px; }
+  .ref-foot { margin-top: 10px; }
+  .ref-foot .btn, .ref-foot .btn--danger { min-height: 48px; }
+}

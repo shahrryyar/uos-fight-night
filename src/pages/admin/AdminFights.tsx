@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { boutSort } from '../../lib/hooks'
 import type { FightPool, Fighter } from '../../lib/types'
@@ -9,6 +10,7 @@ import CardManager from '../../components/admin/fights/CardManager'
 import RecentResults from '../../components/admin/fights/RecentResults'
 import { Button, EmptyState, Loading } from '../../components/ui'
 import { LoadError, SectionHead, fmtCardDate, must, useAction } from '../../components/admin/ui'
+import type { SettlePrefillState } from './Referee'
 
 const ACTIVE = ['scheduled', 'open', 'locked']
 
@@ -24,6 +26,19 @@ export default function AdminFights() {
   const [loaded, setLoaded] = useState(false)
   const load = useAction()
   const loadRun = load.run
+  // "Finish bout" on the referee scoreboard lands here with round + score for that bout's result form.
+  // Used once: taken out of the history entry at once (so a reload or Back -> Forward doesn't reopen the
+  // form with old numbers) and dropped after the first load, once the matching card has mounted with
+  // it (so a later remount, e.g. after Correct result, starts from a clean card).
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [prefill, setPrefill] = useState(() => (location.state as SettlePrefillState | null)?.settlePrefill)
+  useEffect(() => {
+    if ((location.state as SettlePrefillState | null)?.settlePrefill) {
+      navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
+    }
+  }, [location, navigate])
+  useEffect(() => { if (loaded && prefill) setPrefill(undefined) }, [loaded, prefill])
 
   const refresh = useCallback(() => loadRun(async () => {
     const [fr, active, done, pr] = await Promise.all([
@@ -81,7 +96,8 @@ export default function AdminFights() {
             <p className="label c-2"><span className="nowrap">{fmtCardDate(d)}</span> · <span className="nowrap">{list.length} live bout{list.length === 1 ? '' : 's'}</span></p>
             {list.map(f => (
               <FightAdminCard key={f.id} fight={f} red={byId[f.red_fighter_id]} blue={byId[f.blue_fighter_id]}
-                pool={pools[f.id]} hasAccount={hasAccount} onChanged={refresh} />
+                pool={pools[f.id]} hasAccount={hasAccount} onChanged={refresh}
+                prefill={prefill?.fightId === f.id ? prefill : undefined} />
             ))}
           </div>
         ))}
