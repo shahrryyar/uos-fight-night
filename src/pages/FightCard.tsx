@@ -11,15 +11,12 @@ import { useAppBalance } from '../lib/balance'
 import { countdown } from '../lib/math'
 import { groupByCard, must, useAsync, useFightersMap, useNow, usePoll, useRealtime, type FightRow } from '../lib/hooks'
 import FightPanel from '../components/member/FightPanel'
-import { fmtCardDay, tonightSort } from '../components/member/format'
+import { boutsLabel as bouts, fmtCardDay, isLiveBout as isLive, partitionCardBouts } from '../components/member/format'
 import { Alert, ButtonLink, EmptyState, Loading, Ranking } from '../components/ui'
 import '../components/member/tonight.css'
 import { CardWrapUp } from '../components/recap'
 
 const RECENT_WINDOW_MS = 12 * 3600_000
-
-const isLive = (f: FightRow) => f.status === 'scheduled' || f.status === 'open' || f.status === 'locked'
-const bouts = (n: number) => `${n} bout${n === 1 ? '' : 's'}`
 
 export default function FightCard() {
   const now = useNow(1000)
@@ -81,8 +78,6 @@ export default function FightCard() {
       </div>
     )
   }
-
-  const sort = tonightSort(now)
   const fid = profile?.fighter_id ?? null
   const inBout = (f: FightRow) => !!fid && (f.red_fighter_id === fid || f.blue_fighter_id === fid)
   const mustAnswer = (f: FightRow) => f.status === 'scheduled' && inBout(f)
@@ -103,14 +98,7 @@ export default function FightCard() {
     <div className="pg-tonight">
       {head(cards[0].cardDate, cards[0].fights.length)}
       {cards.map((card, ci) => {
-        const list = [...card.fights].sort(sort)
-        const live = list.filter(isLive)
-        const done = list.filter(f => !isLive(f))
-        const featured = live.find(f => f.is_main_event)
-          ?? (live.length === 0 ? done.find(f => f.is_main_event && f.status === 'settled') : undefined)
-        const rows = live.filter(f => f !== featured)
-        const results = done.filter(f => f !== featured)
-          .sort((a, b) => Number(a.status === 'cancelled') - Number(b.status === 'cancelled') || (a.bout_order ?? 0) - (b.bout_order ?? 0))
+        const { featured, undercard: rows, results } = partitionCardBouts(card.fights, now)
 
         const panel = (f: FightRow, size: 'main' | 'row') => (
           <FightPanel key={f.id} fight={f} now={now} size={size} taped={f.id === posterId}

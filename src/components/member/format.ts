@@ -41,6 +41,26 @@ export const boutLabel = (f: FightRow) => (f.is_main_event ? 'Main event' : `Bou
 
 export const sideWord = (s: Side) => (s === 'red' ? 'Red' : 'Blue')
 
+export const isLiveBout = (f: FightRow) => f.status === 'scheduled' || f.status === 'open' || f.status === 'locked'
+export const boutsLabel = (n: number) => `${n} bout${n === 1 ? '' : 's'}`
+
+/**
+ * Partitions card fights into featured (main event), undercard (live non-main bouts),
+ * and finished (results). Main event is excluded from undercard.
+ */
+export function partitionCardBouts(cardFights: FightRow[], now: Date = new Date()) {
+  const sort = tonightSort(now)
+  const list = [...cardFights].sort(sort)
+  const live = list.filter(isLiveBout)
+  const done = list.filter(f => !isLiveBout(f))
+  const featured = live.find(f => f.is_main_event)
+    ?? (live.length === 0 ? done.find(f => f.is_main_event && f.status === 'settled') : undefined)
+  const undercard = live.filter(f => f !== featured)
+  const results = done.filter(f => f !== featured)
+    .sort((a, b) => Number(a.status === 'cancelled') - Number(b.status === 'cancelled') || (a.bout_order ?? 0) - (b.bout_order ?? 0))
+  return { featured, undercard, results }
+}
+
 /** Tonight order (P0, DESIGN 11.3): open main, open by bout order, locked, scheduled, settled, cancelled. */
 const RANK: Record<string, number> = { open: 0, locked: 1, scheduled: 2, settled: 3, cancelled: 4 }
 export function tonightRank(f: FightRow, now: Date) {
