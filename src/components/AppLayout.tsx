@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useBalance } from '../lib/hooks'
 import { BalanceContext } from '../lib/balance'
 import { fmtNum } from '../lib/copy'
-import { getBrandTitle } from '../lib/brand'
+import { useBrandTitle } from '../lib/brand'
 import { Logo, RegaCredit } from './brand'
 import { isRefereeRole } from './referee/refereeAuth'
 import { CalendarDot, ClockCounterClockwise, Ranking, UserCircle, UsersThree, Loading, type IconComponent } from './ui'
@@ -19,6 +19,7 @@ const tabs: { to: string; label: string; icon: IconComponent; end?: boolean }[] 
 
 /** App shell (DESIGN 11.1, 11.2, 11.20): non-sticky app bar, fixed bottom tab bar, credit after every page. */
 export default function AppLayout() {
+  const brandTitle = useBrandTitle()
   const { isAdmin, profile } = useAuth()
   const { balance, loading, reload } = useBalance()
   const { pathname } = useLocation()
@@ -41,7 +42,7 @@ export default function AppLayout() {
     <BalanceContext.Provider value={ctx}>
       <a className="skip" href="#main">Skip to content</a>
       <header className="wrap appbar">
-        <NavLink to="/app" end className="brand" aria-label={`${getBrandTitle()}: tonight's card`}>
+        <NavLink to="/app" end className="brand" aria-label={`${brandTitle}: tonight's card`}>
           <Logo variant="mark" size={40} decorative />
         </NavLink>
         <div className="appbar-right">

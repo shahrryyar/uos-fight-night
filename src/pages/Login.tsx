@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { getBrandTitle } from '../lib/brand'
+import { useBrandTitle } from '../lib/brand'
 import { friendlyError } from '../lib/supabase'
 import AuthShell from '../components/landing/AuthShell'
 import { Button, Field, Input, PasswordInput, Poster } from '../components/ui'
@@ -24,6 +24,7 @@ function loginError(err: unknown): string {
 type Errs = { username?: string; password?: string }
 
 export default function Login() {
+  const brandTitle = useBrandTitle()
   const { signIn, session } = useAuth()
   const loc = useLocation()
   const navigate = useNavigate()
@@ -58,7 +59,7 @@ export default function Login() {
 
   return (
     <AuthShell after={<>No account yet? There’s no sign-up. Ask an admin to make you one.</>}>
-      <title>Log in · {getBrandTitle()}</title>
+      <title>Log in · {brandTitle}</title>
       <Poster as="section" className="login" tilt="-.9deg" aria-labelledby="login-h">
         <h1 id="login-h" className="t-title">Log in</h1>
         <p className="t-help c-2">Use the username and password an admin gave you.</p>

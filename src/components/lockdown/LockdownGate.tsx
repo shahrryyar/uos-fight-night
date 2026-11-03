@@ -11,6 +11,7 @@ import { SiteStatusContext, useSiteStatusSource } from '../../lib/siteStatus'
 import Maintenance, { MaintenanceWait } from './Maintenance'
 import { LockdownBanner } from './LockdownControl'
 import { applyBrandHead } from './brandHead'
+import { loadBrandCopy } from '../../lib/brand'
 
 export default function LockdownGate({ children }: { children: ReactNode }) {
   const { session, loading, refreshProfile } = useAuth()
@@ -27,7 +28,15 @@ export default function LockdownGate({ children }: { children: ReactNode }) {
 
   // branded <head> only once we know this viewer may see the site (index.html ships neutral)
   useLayoutEffect(() => {
-    if (site.ready) applyBrandHead(!site.lockedOut)
+    if (site.ready) {
+      if (!site.lockedOut) {
+        void loadBrandCopy().then(() => {
+          applyBrandHead(true)
+        })
+      } else {
+        applyBrandHead(false)
+      }
+    }
   }, [site.ready, site.lockedOut])
 
   if (!site.ready) return <MaintenanceWait />

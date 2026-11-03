@@ -6,7 +6,7 @@
  * light = for bone paper, mono = single bone colour (on photos / busy art).
  */
 import type { ImgHTMLAttributes } from 'react'
-import { getBrandTitle } from '../../lib/brand'
+import { useBrandTitle } from '../../lib/brand'
 
 export type LogoVariant = 'mark' | 'lockup'
 export type LogoTone = 'dark' | 'light' | 'mono'
@@ -33,9 +33,10 @@ export interface LogoProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'sr
 }
 
 export default function Logo({ variant = 'mark', tone = 'dark', size, alt, decorative, priority, className = '', ...rest }: LogoProps) {
+  const brandTitle = useBrandTitle()
   const h = size ?? (variant === 'mark' ? 32 : 96)
   const w = variant === 'mark' ? h : Math.round(h * LOCKUP_RATIO)
-  const altText = decorative ? '' : (alt ?? getBrandTitle())
+  const altText = decorative ? '' : (alt ?? brandTitle)
   return (
     <img src={FILES[variant][tone]} width={w} height={h} alt={altText}
       className={`logo ${className}`.trim()} decoding="async"

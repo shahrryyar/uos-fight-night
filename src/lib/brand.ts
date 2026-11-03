@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 export interface BrandCopy {
   title: string
   description: string
@@ -20,6 +22,7 @@ const FALLBACK_COPY: BrandCopy = {
 
 let loadedCopy: BrandCopy = { ...FALLBACK_COPY }
 let copyPromise: Promise<BrandCopy> | null = null
+const listeners = new Set<() => void>()
 
 export function getBrandCopy(): BrandCopy {
   return loadedCopy
@@ -41,6 +44,7 @@ export async function loadBrandCopy(): Promise<BrandCopy> {
       if (res.ok) {
         const json = await res.json() as Partial<BrandCopy>
         loadedCopy = { ...FALLBACK_COPY, ...json }
+        listeners.forEach(fn => fn())
       }
     } catch {
       // offline or 404 during lockdown
@@ -50,6 +54,16 @@ export async function loadBrandCopy(): Promise<BrandCopy> {
   return copyPromise
 }
 
-if (typeof window !== 'undefined') {
-  void loadBrandCopy()
+export function useBrandCopy(): BrandCopy {
+  const [copy, setCopy] = useState<BrandCopy>(loadedCopy)
+  useEffect(() => {
+    const update = () => setCopy(loadedCopy)
+    listeners.add(update)
+    return () => { listeners.delete(update) }
+  }, [])
+  return copy
+}
+
+export function useBrandTitle(): string {
+  return useBrandCopy().title
 }

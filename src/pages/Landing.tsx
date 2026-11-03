@@ -1,5 +1,5 @@
 import { useAuth } from '../lib/auth'
-import { getBrandCopy, getBrandTitle } from '../lib/brand'
+import { useBrandCopy } from '../lib/brand'
 import { Logo, RegaCredit } from '../components/brand'
 import { Art, ButtonLink } from '../components/ui'
 import NextFight from '../components/landing/NextFight'
@@ -16,11 +16,12 @@ const rules = [
 
 export default function Landing() {
   const { session } = useAuth()
+  const brand = useBrandCopy()
   const cta = session ? { to: '/app', label: 'Go to Tonight', top: 'Open app' } : { to: '/login', label: 'Log in', top: 'Log in' }
 
   return (
     <div className="pg-landing">
-      <title>{getBrandTitle()}</title>
+      <title>{brand.title}</title>
       <a className="skip" href="#main">Skip to content</a>
 
       <header className="wrap lp-hero">
@@ -57,7 +58,7 @@ export default function Landing() {
         <section className="section" aria-labelledby="share">
           <h2 id="share" className="t-head">Bring the dorm</h2>
           <p className="t-help c-2 lp-share-sub">Send this page to the group chat. An admin sets up a login for anyone who wants in.</p>
-          <ShareButton className="lp-share" title={getBrandTitle()} text={getBrandCopy().shareText} />
+          <ShareButton className="lp-share" title={brand.title} text={brand.shareText} />
         </section>
 
         <RegaCredit className="lp-foot" />

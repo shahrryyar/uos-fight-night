@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { getBrandTitle } from '../../lib/brand'
+import { useBrandTitle } from '../../lib/brand'
 import { Logo, RegaCredit } from '../brand'
 import { Art } from '../ui'
 import './public.css'
@@ -14,13 +14,14 @@ import './public.css'
  * the poster, the after-line or the credit, whatever the screen height (see public.css).
  */
 export default function AuthShell({ children, after }: { children: ReactNode; after?: ReactNode }) {
+  const brandTitle = useBrandTitle()
   return (
     <div className="pg-login">
       <a className="skip" href="#main">Skip to content</a>
       <div className="lp-stage">
         <Art name="mat" look="bg" priority sizes="100vw" />
         <header className="wrap appbar lp-bar">
-          <Link to="/" className="brand" aria-label={`${getBrandTitle()}, home`}>
+          <Link to="/" className="brand" aria-label={`${brandTitle}, home`}>
             <Logo variant="lockup" size={64} decorative priority />
           </Link>
         </header>
