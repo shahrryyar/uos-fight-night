@@ -4,6 +4,7 @@
 --   admin    / localadmin123   (role admin)
 --   member1  / localmember123  (linked to fighter "The Hallway Hurricane")
 --   member2  / localmember123  (linked to fighter "Mattress Mauler")
+--   referee  / localref123     (role referee)
 -- Wave B demo: "The Hallway Hurricane" holds the belt (won last week), badges,
 -- and a locked "Tonight" bout with a running live score.
 -- Wave C demo: yesterday's two-bout card (settled at seed time) has Fight of the Night
@@ -37,6 +38,7 @@ $$;
 select pg_temp.seed_user('5eed0000-0000-4000-8000-000000000001', 'admin',   'Commissioner', 'localadmin123');
 select pg_temp.seed_user('5eed0000-0000-4000-8000-000000000002', 'member1', 'Hallway Guy',  'localmember123');
 select pg_temp.seed_user('5eed0000-0000-4000-8000-000000000003', 'member2', 'Mat Fan',      'localmember123');
+select pg_temp.seed_user('5eed0000-0000-4000-8000-000000000004', 'referee', 'Third Man',     'localref123');
 
 insert into public.fighters (id, nickname, weight_kg, catchphrase) values
   ('11111111-1111-4111-8111-111111111111', 'The Hallway Hurricane', 78.5, 'Lights out, quiet hours.'),
@@ -50,6 +52,7 @@ update public.profiles set fighter_id = '11111111-1111-4111-8111-111111111111'
  where id = '5eed0000-0000-4000-8000-000000000002';
 update public.profiles set fighter_id = '22222222-2222-4222-8222-222222222222'
  where id = '5eed0000-0000-4000-8000-000000000003';
+update public.profiles set role = 'referee' where id = '5eed0000-0000-4000-8000-000000000004';
 
 -- Wave B demo: last week's card (settled). Hurricane beat Laundry Day by pin and
 -- holds the title belt; member2 won a 400-point pick (Bold Pick badge, code high_roller).

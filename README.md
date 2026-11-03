@@ -82,6 +82,7 @@ one card. Log in at `http://localhost:5173/login` with:
 | `admin` | `localadmin123` | admin |
 | `member1` | `localmember123` | member, linked to "The Hallway Hurricane" |
 | `member2` | `localmember123` | member, linked to "Mattress Mauler" |
+| `referee` | `localref123` | referee |
 
 Create more accounts as `admin` under Admin → Members. That needs the Edge Functions running
 locally (`supabase functions serve`).

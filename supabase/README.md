@@ -87,6 +87,7 @@ Local accounts from `seed.sql` (log in at `http://localhost:5173/login`):
 | `admin` | `localadmin123` | admin |
 | `member1` | `localmember123` | member, linked to fighter "The Hallway Hurricane" |
 | `member2` | `localmember123` | member, linked to fighter "Mattress Mauler" |
+| `referee` | `localref123` | referee |
 
 Wave B demo data in the seed: "The Hallway Hurricane" holds the belt (won "Vacant Title" last
 week, badges `first_win` + `belt_holder`), member2 has `high_roller`, the open main event is a
